@@ -9,6 +9,7 @@ import (
 	"backend/internal/domain"
 	"backend/internal/handler"
 	"backend/internal/repository"
+	"backend/internal/router"
 	"backend/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -21,8 +22,14 @@ func main() {
 	// 2. Initialize Database
 	db.InitDB(cfg)
 
-	// 3. Auto Migration (Optional but helpful for first run)
-	err := db.DB.AutoMigrate(&domain.Book{})
+	// 3. Auto Migration
+	err := db.DB.AutoMigrate(
+		&domain.Book{},
+		&domain.User{},
+		&domain.Role{},
+		&domain.Permission{},
+		&domain.UserSession{},
+	)
 	if err != nil {
 		log.Fatalf("AutoMigration failed: %v", err)
 	}
@@ -32,35 +39,20 @@ func main() {
 	bookService := service.NewBookService(bookRepo)
 	bookHandler := handler.NewBookHandler(bookService)
 
+	authRepo := repository.NewAuthRepository(db.DB)
+	authService := service.NewAuthService(authRepo)
+	authHandler := handler.NewAuthHandler(authService)
+
 	// 5. Setup Router
 	r := gin.Default()
 
-	// Health check and DB connection check
+	// Health check
 	r.GET("/health", func(c *gin.Context) {
-		sqlDB, err := db.DB.DB()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "Database disconnected"})
-			return
-		}
-
-		if err := sqlDB.Ping(); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "Database unreachable"})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"status":  "ok",
-			"message": "Backend is running and connected to PostgreSQL",
-		})
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	// Book routes
-	v1 := r.Group("/api/v1")
-	{
-		v1.POST("/books", bookHandler.CreateBook)
-		v1.GET("/books", bookHandler.GetBooks)
-		v1.GET("/books/:id", bookHandler.GetBook)
-	}
+	appRouter := router.NewRouter(bookHandler, authHandler)
+	appRouter.Setup(r)
 
 	// 6. Start Server
 	log.Printf("Server starting on port %s", cfg.ServerPort)
