@@ -24,12 +24,17 @@ func NewRouter(articleHandler *handler.ArticleHandler, categoryHandler *handler.
 
 func (r *Router) Setup(engine *gin.Engine) {
 	// CORS Middleware
+	allowedOrigins := map[string]bool{
+		"http://localhost:3000": true,
+		// Thêm các domain khác ở đây
+	}
+
 	engine.Use(func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
-		// In production, you should check if the origin is allowed
-		if origin != "" {
+		if allowedOrigins[origin] {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 		}
+
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
