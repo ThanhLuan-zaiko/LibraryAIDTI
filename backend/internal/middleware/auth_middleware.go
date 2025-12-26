@@ -11,20 +11,29 @@ import (
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Yêu cầu tiêu đề Authorization"})
+		var token string
+
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				token = parts[1]
+			}
+		}
+
+		if token == "" {
+			// Try getting from cookie
+			if cookieToken, err := c.Cookie("access_token"); err == nil {
+				token = cookieToken
+			}
+		}
+
+		if token == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Yêu cầu tiêu đề Authorization hoặc cookie access_token"})
 			c.Abort()
 			return
 		}
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if !(len(parts) == 2 && parts[0] == "Bearer") {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Tiêu đề Authorization phải là định dạng Bearer token"})
-			c.Abort()
-			return
-		}
-
-		claims, err := utils.ValidateToken(parts[1])
+		claims, err := utils.ValidateToken(token)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token không hợp lệ hoặc đã hết hạn"})
 			c.Abort()

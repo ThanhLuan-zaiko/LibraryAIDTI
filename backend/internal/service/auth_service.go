@@ -68,7 +68,7 @@ func (s *AuthService) Login(email, password, ip, userAgent string) (*LoginRespon
 		roles[i] = r.Name
 	}
 
-	accessToken, err := utils.GenerateToken(user.ID, user.Email, roles, time.Hour*24) // 24h for access token
+	accessToken, err := utils.GenerateToken(user.ID, user.Email, roles, time.Minute*10) // 10m for access token
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (s *AuthService) Login(email, password, ip, userAgent string) (*LoginRespon
 		RefreshToken: refreshTokenVal,
 		IPAddress:    ip,
 		UserAgent:    userAgent,
-		ExpiresAt:    time.Now().Add(time.Hour * 24 * 7), // 7 days
+		ExpiresAt:    time.Now().Add(time.Hour * 24 * 14), // 14 days
 	}
 
 	if err := s.repo.CreateSession(session); err != nil {
@@ -118,7 +118,7 @@ func (s *AuthService) RefreshToken(refreshToken string) (string, error) {
 		roles[i] = r.Name
 	}
 
-	return utils.GenerateToken(user.ID, user.Email, roles, time.Hour*24)
+	return utils.GenerateToken(user.ID, user.Email, roles, time.Minute*10)
 }
 
 func (s *AuthService) UpdateProfile(userID uuid.UUID, fullName string) error {
@@ -149,4 +149,8 @@ func (s *AuthService) ChangePassword(userID uuid.UUID, oldPassword, newPassword 
 
 	user.PasswordHash = hashedPassword
 	return s.repo.UpdateUser(user)
+}
+
+func (s *AuthService) Logout(refreshToken string) error {
+	return s.repo.DeleteSession(refreshToken)
 }

@@ -5,26 +5,35 @@ import (
 	"backend/internal/middleware"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/time/rate"
 )
 
 type Router struct {
-	bookHandler *handler.BookHandler
-	authHandler *handler.AuthHandler
+	articleHandler  *handler.ArticleHandler
+	categoryHandler *handler.CategoryHandler
+	authHandler     *handler.AuthHandler
 }
 
-func NewRouter(bookHandler *handler.BookHandler, authHandler *handler.AuthHandler) *Router {
+func NewRouter(articleHandler *handler.ArticleHandler, categoryHandler *handler.CategoryHandler, authHandler *handler.AuthHandler) *Router {
 	return &Router{
-		bookHandler: bookHandler,
-		authHandler: authHandler,
+		articleHandler:  articleHandler,
+		categoryHandler: categoryHandler,
+		authHandler:     authHandler,
 	}
 }
 
 func (r *Router) Setup(engine *gin.Engine) {
-	// CORS Middleware (simplified)
+	// CORS Middleware
 	engine.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := c.GetHeader("Origin")
+		// In production, you should check if the origin is allowed
+		if origin != "" {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		}
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
@@ -38,16 +47,29 @@ func (r *Router) Setup(engine *gin.Engine) {
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/register", r.authHandler.Register)
-			auth.POST("/login", r.authHandler.Login)
+			auth.POST("/login", middleware.RateLimitMiddleware(rate.Limit(5.0/60.0), 10), r.authHandler.Login)
 			auth.POST("/refresh", r.authHandler.RefreshToken)
+			auth.POST("/logout", r.authHandler.Logout)
 		}
 
-		// Book routes
-		books := v1.Group("/books")
+		// Article routes
+		articles := v1.Group("/articles")
 		{
-			books.POST("", r.bookHandler.CreateBook)
-			books.GET("", r.bookHandler.GetBooks)
-			books.GET("/:id", r.bookHandler.GetBook)
+			articles.POST("", r.articleHandler.CreateArticle)
+			articles.GET("", r.articleHandler.GetArticles)
+			articles.GET("/:id", r.articleHandler.GetArticle)
+			articles.PUT("/:id", r.articleHandler.UpdateArticle)
+			articles.DELETE("/:id", r.articleHandler.DeleteArticle)
+		}
+
+		// Category routes
+		categories := v1.Group("/categories")
+		{
+			categories.POST("", r.categoryHandler.CreateCategory)
+			categories.GET("", r.categoryHandler.GetCategories)
+			categories.GET("/:id", r.categoryHandler.GetCategory)
+			categories.PUT("/:id", r.categoryHandler.UpdateCategory)
+			categories.DELETE("/:id", r.categoryHandler.DeleteCategory)
 		}
 
 		// Protected routes

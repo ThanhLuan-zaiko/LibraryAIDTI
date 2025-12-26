@@ -24,7 +24,8 @@ func main() {
 
 	// 3. Auto Migration
 	err := db.DB.AutoMigrate(
-		&domain.Book{},
+		&domain.Article{},
+		&domain.Category{},
 		&domain.User{},
 		&domain.Role{},
 		&domain.Permission{},
@@ -35,9 +36,12 @@ func main() {
 	}
 
 	// 4. Setup dependency injection
-	bookRepo := repository.NewBookRepository(db.DB)
-	bookService := service.NewBookService(bookRepo)
-	bookHandler := handler.NewBookHandler(bookService)
+	articleRepo := repository.NewArticleRepository(db.DB)
+	categoryRepo := repository.NewCategoryRepository(db.DB)
+	articleService := service.NewArticleService(articleRepo)
+	categoryService := service.NewCategoryService(categoryRepo)
+	articleHandler := handler.NewArticleHandler(articleService)
+	categoryHandler := handler.NewCategoryHandler(categoryService)
 
 	authRepo := repository.NewAuthRepository(db.DB)
 	authService := service.NewAuthService(authRepo)
@@ -51,7 +55,7 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	appRouter := router.NewRouter(bookHandler, authHandler)
+	appRouter := router.NewRouter(articleHandler, categoryHandler, authHandler)
 	appRouter.Setup(r)
 
 	// 6. Start Server

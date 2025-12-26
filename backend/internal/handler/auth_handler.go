@@ -60,7 +60,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, res)
+	// Set HttpOnly cookies for tokens
+	// MaxAge: 10m for access_token, 14 days for refresh_token
+	c.SetCookie("access_token", res.AccessToken, 60*10, "/", "", false, true)
+	c.SetCookie("refresh_token", res.RefreshToken, 3600*24*14, "/", "", false, true)
+
+	// Return user info only, tokens are in cookies
+	c.JSON(http.StatusOK, gin.H{
+		"user": res.User,
+	})
 }
 
 type RefreshRequest struct {
@@ -68,19 +76,35 @@ type RefreshRequest struct {
 }
 
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
-	var req RefreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	refreshToken, err := c.Cookie("refresh_token")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không tìm thấy token làm mới"})
 		return
 	}
 
-	accessToken, err := h.authService.RefreshToken(req.RefreshToken)
+	accessToken, err := h.authService.RefreshToken(refreshToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"access_token": accessToken})
+	// Update access_token cookie
+	c.SetCookie("access_token", accessToken, 60*10, "/", "", false, true)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Làm mới token thành công"})
+}
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+	refreshToken, err := c.Cookie("refresh_token")
+	if err == nil {
+		h.authService.Logout(refreshToken)
+	}
+
+	// Clear cookies
+	c.SetCookie("access_token", "", -1, "/", "", false, true)
+	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Đăng xuất thành công"})
 }
 
 type UpdateProfileRequest struct {
