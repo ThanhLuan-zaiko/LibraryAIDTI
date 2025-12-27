@@ -62,5 +62,36 @@ export const dashboardService = {
     async getAnalytics() {
         const response = await apiClient.get<AnalyticsData>(ANALYTICS_URL);
         return response.data;
+    },
+
+    async getHierarchyStats() {
+        const response = await apiClient.get<CategoryHierarchyStats>(`${ANALYTICS_URL}/hierarchy/stats`);
+        return response.data;
+    },
+
+    async getCategoryTree() {
+        const response = await apiClient.get<CategoryTreeData>(`${ANALYTICS_URL}/hierarchy/tree`);
+        return response.data;
     }
 };
+
+// Hierarchy-specific types
+export interface CategoryHierarchyStats {
+    root_count: number;
+    child_count: number;
+    avg_children: number;
+    max_depth: number;
+}
+
+export interface CategoryNode {
+    id: string;
+    name: string;
+    slug: string;
+    article_count: number;
+    level: number;
+    children?: CategoryNode[];
+}
+
+export interface CategoryTreeData {
+    roots: CategoryNode[];
+}

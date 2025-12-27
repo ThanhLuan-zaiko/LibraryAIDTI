@@ -60,8 +60,8 @@ func (r *categoryRepository) GetList(page, limit int, search, sortBy, order stri
 		query = query.Where("name ILIKE ? OR slug ILIKE ?", "%"+search+"%", "%"+search+"%")
 	}
 
-	err := query.Count(&totalRows).Error
-	if err != nil {
+	// Count total rows
+	if err := query.Count(&totalRows).Error; err != nil {
 		return nil, err
 	}
 
@@ -83,10 +83,18 @@ func (r *categoryRepository) GetList(page, limit int, search, sortBy, order stri
 			sortString = "name " + sortDirection
 		case "created_at":
 			sortString = "created_at " + sortDirection
+		case "is_active":
+			sortString = "is_active " + sortDirection
 		}
 	}
 
-	err = query.Preload("Parent").Limit(limit).Offset(offset).Order(sortString).Find(&categories).Error
+	err := query.
+		Preload("Parent").
+		Preload("Children").
+		Limit(limit).
+		Offset(offset).
+		Order(sortString).
+		Find(&categories).Error
 	if err != nil {
 		return nil, err
 	}

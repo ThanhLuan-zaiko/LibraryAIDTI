@@ -1,22 +1,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { dashboardService, AnalyticsData } from "@/services/dashboard.service";
-import TagBarChart from "../charts/TagBarChart"; // You might need to make this generic or update it
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from "recharts";
+import {
+    dashboardService,
+    AnalyticsData,
+    CategoryHierarchyStats,
+    CategoryTreeData
+} from "@/services/dashboard.service";
+import CategoryHierarchyStatsComponent from "./CategoryHierarchyStats";
+import CategoryTreeChart from "./CategoryTreeChart";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from "recharts";
 import { FiFileText, FiEye, FiMessageSquare, FiActivity } from "react-icons/fi";
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export default function CategoryAnalytics() {
     const [data, setData] = useState<AnalyticsData | null>(null);
+    const [hierarchyStats, setHierarchyStats] = useState<CategoryHierarchyStats | null>(null);
+    const [categoryTree, setCategoryTree] = useState<CategoryTreeData | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const result = await dashboardService.getAnalytics();
-                setData(result);
+                // Fetch all data in parallel
+                const [analyticsData, hierarchyData, treeData] = await Promise.all([
+                    dashboardService.getAnalytics(),
+                    dashboardService.getHierarchyStats(),
+                    dashboardService.getCategoryTree()
+                ]);
+
+                setData(analyticsData);
+                setHierarchyStats(hierarchyData);
+                setCategoryTree(treeData);
             } catch (error) {
                 console.error("Failed to fetch analytics:", error);
             } finally {
@@ -39,7 +55,7 @@ export default function CategoryAnalytics() {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Stats Grid */}
+            {/* Original Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                     title="Tổng bài viết"
@@ -67,23 +83,30 @@ export default function CategoryAnalytics() {
                 />
             </div>
 
-            {/* Charts Row 1: Trend & Category Distribution */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4">Xu hướng bài viết (30 ngày)</h3>
-                    <div className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={data.article_trend || []}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                                <YAxis />
-                                <Tooltip />
-                                <Line type="monotone" dataKey="count" stroke="#8884d8" strokeWidth={3} dot={{ r: 4 }} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
+            {/* Hierarchy Stats - NEW */}
+            {hierarchyStats && <CategoryHierarchyStatsComponent stats={hierarchyStats} />}
 
+            {/* Article Trend Chart */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">Xu hướng bài viết (30 ngày)</h3>
+                <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={data.article_trend || []}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                            <YAxis />
+                            <Tooltip />
+                            <Line type="monotone" dataKey="count" stroke="#8884d8" strokeWidth={3} dot={{ r: 4 }} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            {/* Category Tree Chart - NEW */}
+            {categoryTree && <CategoryTreeChart data={categoryTree} />}
+
+            {/* Charts Row: Category Distribution & Top Tags */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                     <h3 className="text-lg font-bold text-gray-800 mb-4">Phân bố danh mục</h3>
                     <div className="h-[300px]">
@@ -109,21 +132,20 @@ export default function CategoryAnalytics() {
                         </ResponsiveContainer>
                     </div>
                 </div>
-            </div>
 
-            {/* Charts Row 2: Top Tags */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Top Thẻ được sử dụng</h3>
-                <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={data.top_tags || []}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="name" />
-                            <YAxis />
-                            <Tooltip cursor={{ fill: 'transparent' }} />
-                            <Bar dataKey="usage_count" fill="#82ca9d" radius={[4, 4, 0, 0]} barSize={50} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">Top Thẻ được sử dụng</h3>
+                    <div className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={data.top_tags || []}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis dataKey="name" />
+                                <YAxis />
+                                <Tooltip cursor={{ fill: 'transparent' }} />
+                                <Bar dataKey="usage_count" fill="#82ca9d" radius={[4, 4, 0, 0]} barSize={50} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
             </div>
         </div>

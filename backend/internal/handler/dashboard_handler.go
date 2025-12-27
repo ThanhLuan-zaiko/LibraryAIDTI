@@ -23,3 +23,21 @@ func (h *DashboardHandler) GetAnalytics(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, analytics)
 }
+
+func (h *DashboardHandler) GetHierarchyStats(c *gin.Context) {
+	stats, err := h.service.GetCategoryHierarchyStats()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, stats)
+}
+
+func (h *DashboardHandler) GetCategoryTree(c *gin.Context) {
+	tree, err := h.service.GetCategoryTree()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"roots": tree})
+}

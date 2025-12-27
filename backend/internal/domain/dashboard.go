@@ -17,8 +17,12 @@ type ArticleTrend struct {
 
 type DashboardRepository interface {
 	GetAnalytics() (*DashboardAnalyticsData, error)
+	GetCategoryHierarchyStats() (*CategoryHierarchyStats, error)
+	GetCategoryTree() ([]CategoryNode, error)
 }
 
 type DashboardService interface {
 	GetAnalytics() (*DashboardAnalyticsData, error)
+	GetCategoryHierarchyStats() (*CategoryHierarchyStats, error)
+	GetCategoryTree() ([]CategoryNode, error)
 }

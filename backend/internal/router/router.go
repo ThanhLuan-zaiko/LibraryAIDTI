@@ -117,6 +117,8 @@ func (r *Router) Setup(engine *gin.Engine) {
 			// Admin Stats
 			protected.GET("/admin/dashboard", r.statsHandler.GetDashboardData)
 			protected.GET("/admin/analytics", r.dashboardHandler.GetAnalytics)
+			protected.GET("/admin/analytics/hierarchy/stats", r.dashboardHandler.GetHierarchyStats)
+			protected.GET("/admin/analytics/hierarchy/tree", r.dashboardHandler.GetCategoryTree)
 		}
 	}
 }

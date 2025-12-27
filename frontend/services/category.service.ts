@@ -13,6 +13,7 @@ export interface Category {
     updated_at: string;
     parent?: Category;
     children?: Category[];
+    level?: number; // For UI rendering purposes
 }
 
 export interface CategoryStats {
