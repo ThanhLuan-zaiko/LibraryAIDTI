@@ -26,6 +26,7 @@ func main() {
 	err := db.DB.AutoMigrate(
 		&domain.Article{},
 		&domain.Category{},
+		&domain.Tag{},
 		&domain.User{},
 		&domain.Role{},
 		&domain.Permission{},
@@ -43,6 +44,10 @@ func main() {
 	articleHandler := handler.NewArticleHandler(articleService)
 	categoryHandler := handler.NewCategoryHandler(categoryService)
 
+	tagRepo := repository.NewTagRepository(db.DB)
+	tagService := service.NewTagService(tagRepo)
+	tagHandler := handler.NewTagHandler(tagService)
+
 	authRepo := repository.NewAuthRepository(db.DB)
 	authService := service.NewAuthService(authRepo)
 	authHandler := handler.NewAuthHandler(authService)
@@ -59,7 +64,7 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	appRouter := router.NewRouter(articleHandler, categoryHandler, authHandler, statsHandler)
+	appRouter := router.NewRouter(articleHandler, categoryHandler, tagHandler, authHandler, statsHandler)
 	appRouter.Setup(r)
 
 	// 6. Start Server

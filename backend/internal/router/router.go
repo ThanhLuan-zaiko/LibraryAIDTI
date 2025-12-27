@@ -11,14 +11,16 @@ import (
 type Router struct {
 	articleHandler  *handler.ArticleHandler
 	categoryHandler *handler.CategoryHandler
+	tagHandler      *handler.TagHandler
 	authHandler     *handler.AuthHandler
 	statsHandler    *handler.StatsHandler
 }
 
-func NewRouter(articleHandler *handler.ArticleHandler, categoryHandler *handler.CategoryHandler, authHandler *handler.AuthHandler, statsHandler *handler.StatsHandler) *Router {
+func NewRouter(articleHandler *handler.ArticleHandler, categoryHandler *handler.CategoryHandler, tagHandler *handler.TagHandler, authHandler *handler.AuthHandler, statsHandler *handler.StatsHandler) *Router {
 	return &Router{
 		articleHandler:  articleHandler,
 		categoryHandler: categoryHandler,
+		tagHandler:      tagHandler,
 		authHandler:     authHandler,
 		statsHandler:    statsHandler,
 	}
@@ -74,9 +76,21 @@ func (r *Router) Setup(engine *gin.Engine) {
 		{
 			categories.POST("", r.categoryHandler.CreateCategory)
 			categories.GET("", r.categoryHandler.GetCategories)
+			categories.GET("/stats", r.categoryHandler.GetStats) // Make sure this is before /:id to avoid conflict if id is string. ID is UUID so it might be okay, but explicitly placing before is safer.
 			categories.GET("/:id", r.categoryHandler.GetCategory)
 			categories.PUT("/:id", r.categoryHandler.UpdateCategory)
 			categories.DELETE("/:id", r.categoryHandler.DeleteCategory)
+		}
+
+		// Tag routes
+		tags := v1.Group("/tags")
+		{
+			tags.POST("", r.tagHandler.CreateTag)
+			tags.GET("", r.tagHandler.GetTags)
+			tags.GET("/stats", r.tagHandler.GetStats)
+			tags.GET("/:id", r.tagHandler.GetTag)
+			tags.PUT("/:id", r.tagHandler.UpdateTag)
+			tags.DELETE("/:id", r.tagHandler.DeleteTag)
 		}
 
 		// Protected routes

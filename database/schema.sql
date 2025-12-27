@@ -472,3 +472,5 @@ ON CONFLICT DO NOTHING;
 SELECT * FROM role_permissions;
 SELECT * FROM users;
 SELECT * FROM roles;
+SELECT * FROM tags;
+SELECT * FROM categories;

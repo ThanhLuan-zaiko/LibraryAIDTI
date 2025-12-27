@@ -1,66 +1,136 @@
 "use client";
 
-import React, { useState } from 'react';
-import { HiPlus, HiPencil, HiTrash } from 'react-icons/hi';
+import { useState } from "react";
+import { FiPlus } from "react-icons/fi";
+import { useCategoryLogic } from "@/hooks/admin/useCategoryLogic";
+import CategoryPieChart from "@/components/admin/charts/CategoryPieChart";
+import TagBarChart from "@/components/admin/charts/TagBarChart";
+import ConfirmModal from "@/components/admin/ConfirmModal";
+import Pagination from "@/components/admin/Pagination";
+import CategoryModal from "@/components/admin/categories/CategoryModal";
+import CategoryTable from "@/components/admin/categories/CategoryTable";
+import CategoryActions from "@/components/admin/categories/CategoryActions";
+import { categoryService, Category } from "@/services/category.service";
 
-const CategoriesAdminPage = () => {
-    const [categories] = useState([
-        { id: 1, name: 'Chính trị', slug: 'politics', count: 45, description: 'Tin tức về các vấn đề chính trị trong và ngoài nước.' },
-        { id: 2, name: 'Kinh doanh', slug: 'business', count: 120, description: 'Cập nhật tình hình kinh tế, tài chính.' },
-        { id: 3, name: 'Công nghệ', slug: 'technology', count: 85, description: 'Máy móc, thiết bị, phần mềm và AI.' },
-        { id: 4, name: 'Thể thao', slug: 'sports', count: 210, description: 'Bóng đá, tennis, đua xe...' },
-    ]);
+export default function CategoriesPage() {
+    // Business Logic Hook
+    const {
+        categories,
+        allCategories,
+        pagination,
+        loading,
+        searchQuery,
+        handlePageChange,
+        handleSearch,
+        handleLimitChange,
+        refreshData
+    } = useCategoryLogic();
+
+    // Modal & Action States (kept in page or moved to hook? Kept here for UI control mainly, but could be moved. Let's keep UI state here for now)
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+    const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
+
+    // Handlers
+    const handleOpenModal = (category?: Category) => {
+        setEditingCategory(category || null);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setEditingCategory(null);
+    };
+
+    const handleOpenDeleteModal = (id: string) => {
+        setCategoryToDelete(id);
+        setIsDeleteModalOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!categoryToDelete) return;
+        try {
+            setDeleting(true);
+            await categoryService.delete(categoryToDelete);
+            refreshData();
+            setIsDeleteModalOpen(false);
+            setCategoryToDelete(null);
+        } catch (error) {
+            console.error("Failed to delete category:", error);
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Quản lý danh mục</h1>
                     <p className="text-sm text-gray-500">Phân loại bài viết để người dùng dễ dàng tìm kiếm.</p>
                 </div>
-                <button className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-sm">
-                    <HiPlus className="w-5 h-5" />
+                <button
+                    onClick={() => handleOpenModal()}
+                    className="flex items-center justify-center space-x-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md active:scale-95"
+                >
+                    <FiPlus />
                     <span>Thêm danh mục mới</span>
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {categories.map((category) => (
-                    <div key={category.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow relative group">
-                        <div className="flex justify-between items-start mb-4">
-                            <h3 className="text-lg font-bold text-gray-900">{category.name}</h3>
-                            <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold">
-                                {category.count} bài
-                            </span>
-                        </div>
-                        <p className="text-sm text-gray-500 mb-6 italic">/{category.slug}</p>
-                        <p className="text-sm text-gray-600 line-clamp-2 mb-6 h-10">
-                            {category.description}
-                        </p>
-
-                        <div className="flex justify-end space-x-2 border-t pt-4 border-gray-50">
-                            <button className="flex items-center space-x-1 text-amber-600 hover:bg-amber-50 px-3 py-1.5 rounded-lg transition-colors text-sm font-semibold">
-                                <HiPencil className="w-4 h-4" />
-                                <span>Sửa</span>
-                            </button>
-                            <button className="flex items-center space-x-1 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors text-sm font-semibold">
-                                <HiTrash className="w-4 h-4" />
-                                <span>Xóa</span>
-                            </button>
-                        </div>
-                    </div>
-                ))}
-
-                {/* Empty State / Add Category Placeholder */}
-                <button className="border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center p-6 text-gray-400 hover:border-blue-500 hover:text-blue-500 transition-all group min-h-[220px]">
-                    <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mb-3 group-hover:bg-blue-50">
-                        <HiPlus className="w-6 h-6" />
-                    </div>
-                    <span className="font-semibold text-sm">Tạo danh mục mới</span>
-                </button>
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CategoryPieChart />
+                <TagBarChart />
             </div>
+
+            {/* Main Content */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden p-1">
+                <CategoryActions
+                    searchQuery={searchQuery}
+                    onSearch={handleSearch}
+                    limit={pagination.limit}
+                    totalRows={pagination.total_rows}
+                    onLimitChange={handleLimitChange}
+                />
+
+                <CategoryTable
+                    categories={categories}
+                    loading={loading}
+                    onEdit={handleOpenModal}
+                    onDelete={handleOpenDeleteModal}
+                />
+
+                <Pagination
+                    currentPage={pagination.page}
+                    totalPages={pagination.total_pages}
+                    onPageChange={handlePageChange}
+                />
+
+                <div className="h-4"></div>
+            </div>
+
+            {/* Modals */}
+            <CategoryModal
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+                onSuccess={refreshData}
+                editingCategory={editingCategory}
+                allCategories={allCategories}
+            />
+
+            <ConfirmModal
+                isOpen={isDeleteModalOpen}
+                title="Xác nhận xóa danh mục"
+                message="Dữ liệu bị xóa sẽ không thể khôi phục. Bạn có chắc chắn muốn thực hiện hành động này?"
+                confirmText="Xóa ngay"
+                cancelText="Quay lại"
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setIsDeleteModalOpen(false)}
+                loading={deleting}
+            />
         </div>
     );
-};
-
-export default CategoriesAdminPage;
+}

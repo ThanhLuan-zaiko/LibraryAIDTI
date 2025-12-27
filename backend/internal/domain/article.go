@@ -6,15 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type Category struct {
-	ID          uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	Name        string    `gorm:"unique;not null" json:"name"`
-	Slug        string    `gorm:"unique;not null" json:"slug"`
-	Description string    `json:"description"`
-	CreatedAt   time.Time `gorm:"default:now()" json:"created_at"`
-	UpdatedAt   time.Time `gorm:"default:now()" json:"updated_at"`
-}
-
 type ArticleStatus string
 
 const (
@@ -49,15 +40,6 @@ type ArticleRepository interface {
 	Delete(id uuid.UUID) error
 }
 
-type CategoryRepository interface {
-	Create(category *Category) error
-	GetAll() ([]Category, error)
-	GetByID(id uuid.UUID) (*Category, error)
-	GetBySlug(slug string) (*Category, error)
-	Update(category *Category) error
-	Delete(id uuid.UUID) error
-}
-
 type ArticleService interface {
 	CreateArticle(article *Article) error
 	GetArticles() ([]Article, error)
@@ -65,13 +47,4 @@ type ArticleService interface {
 	GetArticleBySlug(slug string) (*Article, error)
 	UpdateArticle(article *Article) error
 	DeleteArticle(id uuid.UUID) error
-}
-
-type CategoryService interface {
-	CreateCategory(category *Category) error
-	GetCategories() ([]Category, error)
-	GetCategoryByID(id uuid.UUID) (*Category, error)
-	GetCategoryBySlug(slug string) (*Category, error)
-	UpdateCategory(category *Category) error
-	DeleteCategory(id uuid.UUID) error
 }
