@@ -15,6 +15,7 @@ type Router struct {
 	authHandler      *handler.AuthHandler
 	statsHandler     *handler.StatsHandler
 	dashboardHandler *handler.DashboardHandler
+	userHandler      *handler.UserHandler
 }
 
 func NewRouter(
@@ -24,6 +25,7 @@ func NewRouter(
 	authHandler *handler.AuthHandler,
 	statsHandler *handler.StatsHandler,
 	dashboardHandler *handler.DashboardHandler,
+	userHandler *handler.UserHandler,
 ) *Router {
 	return &Router{
 		articleHandler:   articleHandler,
@@ -32,6 +34,7 @@ func NewRouter(
 		authHandler:      authHandler,
 		statsHandler:     statsHandler,
 		dashboardHandler: dashboardHandler,
+		userHandler:      userHandler,
 	}
 }
 
@@ -119,6 +122,18 @@ func (r *Router) Setup(engine *gin.Engine) {
 			protected.GET("/admin/analytics", r.dashboardHandler.GetAnalytics)
 			protected.GET("/admin/analytics/hierarchy/stats", r.dashboardHandler.GetHierarchyStats)
 			protected.GET("/admin/analytics/hierarchy/tree", r.dashboardHandler.GetCategoryTree)
+
+			// User Management (Admin only - Should add role check middleware later)
+			users := protected.Group("/users")
+			{
+				users.GET("", r.userHandler.GetUsers)
+				users.GET("/stats", r.userHandler.GetStats)
+				users.GET("/:id", r.userHandler.GetUser)
+				users.PUT("/:id", r.userHandler.UpdateUser)
+				users.DELETE("/:id", r.userHandler.DeleteUser)
+				users.PUT("/:id/roles", r.userHandler.AssignRoles)
+			}
+			protected.GET("/roles", r.userHandler.GetRoles)
 		}
 	}
 }
