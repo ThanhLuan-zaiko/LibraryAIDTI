@@ -41,6 +41,111 @@ const GRADIENT_COLORS = [
     { from: 'from-indigo-500', to: 'to-indigo-600', bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-200' },
 ];
 
+// Helper to count all children recursively
+function countAllChildren(nodes: any[]): number {
+    let count = 0;
+    nodes.forEach(node => {
+        if (node.children && node.children.length > 0) {
+            count += node.children.length;
+            count += countAllChildren(node.children);
+        }
+    });
+    return count;
+}
+
+// Helper to count total articles recursively
+function countTotalArticles(nodes: any[]): number {
+    let total = 0;
+    nodes.forEach(node => {
+        total += node.article_count || 0;
+        if (node.children && node.children.length > 0) {
+            total += countTotalArticles(node.children);
+        }
+    });
+    return total;
+}
+
+// Child Card component for recursive rendering
+interface ChildCardProps {
+    child: any;
+    colorScheme: any;
+    level: number;
+    isLast?: boolean;
+}
+
+function ChildCard({ child, colorScheme, level, isLast = false }: ChildCardProps) {
+    const hasGrandchildren = child.children && child.children.length > 0;
+
+    return (
+        <div className="w-full">
+            <div className="flex items-start gap-2">
+                {/* Tree visualization */}
+                {level > 0 && (
+                    <div className="flex-shrink-0 w-6 pt-2">
+                        <div className="relative h-full">
+                            {/* L-shaped connector */}
+                            <div className={`absolute left-0 top-0 w-3 border-l-2 border-b-2 rounded-bl-md ${colorScheme.border}`}
+                                style={{ height: '12px' }}
+                            ></div>
+                            {/* Vertical line (if not last) */}
+                            {!isLast && (
+                                <div className={`absolute left-0 top-3 bottom-0 w-0.5 ${colorScheme.border.replace('border-', 'bg-')}`}></div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                <div className={`flex-1 bg-white border ${colorScheme.border} rounded-xl p-3 hover:shadow-md hover:scale-102 transition-all cursor-pointer`}>
+                    <div className="flex items-start gap-2">
+                        {hasGrandchildren ? (
+                            <div className={`w-7 h-7 rounded-lg ${colorScheme.bg} flex items-center justify-center flex-shrink-0`}>
+                                <FiFolderPlus size={14} className={colorScheme.text} />
+                            </div>
+                        ) : (
+                            <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0">
+                                <FiFolder size={14} className="text-gray-400" />
+                            </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                                <p className={`font-semibold text-xs ${colorScheme.text} truncate`}>
+                                    {child.name}
+                                </p>
+                                {hasGrandchildren && (
+                                    <span className={`px-1.5 py-0.5 ${colorScheme.bg} ${colorScheme.text} text-[10px] rounded-full font-bold`}>
+                                        {child.children.length}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-[10px] text-gray-400 italic">/{child.slug}</p>
+                                <span className="text-[10px] text-gray-500">
+                                    • {child.article_count} bài
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Render grandchildren recursively */}
+            {hasGrandchildren && (
+                <div className="mt-1 ml-2 space-y-1">
+                    {child.children.map((grandchild: any, idx: number) => (
+                        <ChildCard
+                            key={grandchild.id}
+                            child={grandchild}
+                            colorScheme={colorScheme}
+                            level={level + 1}
+                            isLast={idx === child.children.length - 1}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function CategoryTreeChart({ data }: CategoryTreeChartProps) {
     const [expandedCard, setExpandedCard] = useState<string | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -203,23 +308,13 @@ export default function CategoryTreeChart({ data }: CategoryTreeChartProps) {
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto custom-scrollbar">
-                                            {root.children.map((child: any) => (
-                                                <div
+                                            {root.children.map((child: any, childIdx: number) => (
+                                                <ChildCard
                                                     key={child.id}
-                                                    className="bg-white border border-gray-200 rounded-xl p-3 hover:shadow-md hover:scale-105 transition-all cursor-pointer"
-                                                >
-                                                    <div className="flex items-start gap-2">
-                                                        <FiFolder size={14} className={colorScheme.text} />
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className={`font-semibold text-xs ${colorScheme.text} truncate`}>
-                                                                {child.name}
-                                                            </p>
-                                                            <p className="text-xs text-gray-500">
-                                                                {child.article_count} bài viết
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                    child={child}
+                                                    colorScheme={colorScheme}
+                                                    level={0}
+                                                />
                                             ))}
                                         </div>
                                     </div>
@@ -240,8 +335,7 @@ export default function CategoryTreeChart({ data }: CategoryTreeChartProps) {
                 </div>
                 <div className="text-center">
                     <p className="text-2xl font-bold text-gray-800">
-                        {data.roots.reduce((sum, root) =>
-                            sum + (root.children?.length || 0), 0)}
+                        {countAllChildren(data.roots)}
                     </p>
                     <p className="text-xs text-gray-500">Danh mục con</p>
                 </div>
@@ -254,10 +348,7 @@ export default function CategoryTreeChart({ data }: CategoryTreeChartProps) {
                 </div>
                 <div className="text-center">
                     <p className="text-2xl font-bold text-gray-800">
-                        {data.roots.reduce((sum, root) =>
-                            sum + (root.article_count || 0) +
-                            (root.children?.reduce((childSum: number, child: any) =>
-                                childSum + (child.article_count || 0), 0) || 0), 0)}
+                        {countTotalArticles(data.roots)}
                     </p>
                     <p className="text-xs text-gray-500">Tổng bài viết</p>
                 </div>

@@ -88,15 +88,26 @@ func (r *categoryRepository) GetList(page, limit int, search, sortBy, order stri
 		}
 	}
 
+	// Get paginated categories
 	err := query.
 		Preload("Parent").
-		Preload("Children").
 		Limit(limit).
 		Offset(offset).
 		Order(sortString).
 		Find(&categories).Error
 	if err != nil {
 		return nil, err
+	}
+
+	// Load all children recursively for returned categories
+	categoryIDs := make([]string, len(categories))
+	for i, cat := range categories {
+		categoryIDs[i] = cat.ID.String()
+	}
+
+	// Build full tree for each category
+	for i := range categories {
+		r.loadChildren(&categories[i])
 	}
 
 	return &domain.PaginatedResult[domain.Category]{
@@ -108,6 +119,27 @@ func (r *categoryRepository) GetList(page, limit int, search, sortBy, order stri
 			TotalPages: totalPages,
 		},
 	}, nil
+}
+
+// loadChildren recursively loads all children for a category
+func (r *categoryRepository) loadChildren(category *domain.Category) {
+	var children []domain.Category
+
+	err := r.db.Where("parent_id = ?", category.ID).
+		Preload("Parent").
+		Find(&children).Error
+
+	if err != nil || len(children) == 0 {
+		category.Children = []domain.Category{}
+		return
+	}
+
+	// Recursively load children for each child
+	for i := range children {
+		r.loadChildren(&children[i])
+	}
+
+	category.Children = children
 }
 
 func (r *categoryRepository) Update(category *domain.Category) error {

@@ -82,8 +82,8 @@ export default function CategoryTreeView({
                 {/* Tree Node Row */}
                 <div
                     className={`flex items-center py-3 rounded-lg transition-all group cursor-pointer ${focusedId === category.id
-                            ? 'bg-blue-50 ring-2 ring-blue-400 ring-offset-2'
-                            : 'hover:bg-gradient-to-r hover:from-blue-50 hover:to-transparent'
+                        ? 'bg-blue-50 ring-2 ring-blue-400 ring-offset-2'
+                        : 'hover:bg-gradient-to-r hover:from-blue-50 hover:to-transparent'
                         }`}
                     onClick={() => setFocusedId(category.id)}
                     onKeyDown={(e) => {
@@ -153,10 +153,10 @@ export default function CategoryTreeView({
 
                     {/* Folder Icon with depth-based colors */}
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center mr-3 transition-all ${hasChildren
-                            ? level === 0
-                                ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md'
-                                : 'bg-gradient-to-br from-blue-400 to-blue-500 text-white shadow-sm'
-                            : 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600'
+                        ? level === 0
+                            ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md'
+                            : 'bg-gradient-to-br from-blue-400 to-blue-500 text-white shadow-sm'
+                        : 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600'
                         }`}>
                         {hasChildren ? (
                             <FiFolderPlus size={18} className={isExpanded ? 'scale-110' : ''} />
@@ -166,51 +166,58 @@ export default function CategoryTreeView({
                     </div>
 
                     {/* Category Info with better typography */}
-                    <div className="flex-1 flex items-center gap-4">
-                        <div className="min-w-0">
-                            <p className={`font-semibold text-gray-800 ${level === 0 ? 'text-base' : 'text-sm'}`}>
+                    <div className="flex-1 flex items-center gap-2 md:gap-4 min-w-0">
+                        <div className="min-w-0 flex-shrink">
+                            <p className={`font-semibold text-gray-800 truncate ${level === 0 ? 'text-sm md:text-base' : 'text-xs md:text-sm'}`}>
                                 {category.name}
                             </p>
-                            <p className="text-xs text-gray-400 italic truncate">/{category.slug}</p>
+                            <p className="text-xs text-gray-400 italic truncate hidden sm:block">/{category.slug}</p>
                         </div>
                         {hasChildren && (
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 text-blue-700 text-xs rounded-full font-medium shadow-sm">
-                                <FiFolder size={10} />
-                                <span>{category.children!.length}</span>
+                            <div className="flex-shrink-0 flex items-center gap-1.5 px-2 md:px-2.5 py-1 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 text-blue-700 text-xs rounded-full font-medium shadow-sm">
+                                <FiFolder size={10} className="hidden sm:inline" />
+                                <span className="text-[10px] md:text-xs">{category.children!.length}</span>
                             </div>
                         )}
                         {category.description && (
-                            <p className="text-sm text-gray-500 truncate max-w-md hidden lg:block">
+                            <p className="text-sm text-gray-500 truncate max-w-md hidden xl:block">
                                 {category.description}
                             </p>
                         )}
                     </div>
 
                     {/* Status with better design */}
-                    <div className="mx-4">
-                        <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm ${category.is_active
-                                ? "bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border border-green-200"
-                                : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border border-red-200"
+                    <div className="hidden md:block mx-2 md:mx-4">
+                        <span className={`px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-xs font-semibold shadow-sm ${category.is_active
+                            ? "bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border border-green-200"
+                            : "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border border-red-200"
                             }`}>
-                            {category.is_active ? "● Hoạt động" : "○ Tạm dừng"}
+                            <span className="hidden lg:inline">{category.is_active ? "● Hoạt động" : "○ Tạm dừng"}</span>
+                            <span className="lg:hidden">{category.is_active ? "●" : "○"}</span>
                         </span>
                     </div>
 
                     {/* Actions with better hover effects */}
-                    <div className="flex space-x-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                    <div className="flex space-x-1 md:space-x-1.5 opacity-0 group-hover:opacity-100 transition-all">
                         <button
-                            onClick={() => onEdit(category)}
-                            className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all hover:shadow-md hover:scale-105 active:scale-95"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(category);
+                            }}
+                            className="p-1.5 md:p-2.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all hover:shadow-md hover:scale-105 active:scale-95"
                             title="Sửa"
                         >
-                            <FiEdit2 size={16} />
+                            <FiEdit2 size={14} className="md:w-4 md:h-4" />
                         </button>
                         <button
-                            onClick={() => onDelete(category.id)}
-                            className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-all hover:shadow-md hover:scale-105 active:scale-95"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(category.id);
+                            }}
+                            className="p-1.5 md:p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-all hover:shadow-md hover:scale-105 active:scale-95"
                             title="Xóa"
                         >
-                            <FiTrash2 size={16} />
+                            <FiTrash2 size={14} className="md:w-4 md:h-4" />
                         </button>
                     </div>
                 </div>
@@ -236,11 +243,11 @@ export default function CategoryTreeView({
     const rootCategories = categories.filter(cat => !cat.parent_id);
 
     return (
-        <div className="p-6">
-            <div className="mb-4 flex items-center justify-between">
+        <div className="p-3 md:p-6">
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h3 className="text-lg font-bold text-gray-800">Cấu trúc cây danh mục</h3>
-                    <p className="text-sm text-gray-500">
+                    <h3 className="text-base md:text-lg font-bold text-gray-800">Cấu trúc cây danh mục</h3>
+                    <p className="text-xs md:text-sm text-gray-500">
                         Click mũi tên để mở/đóng các nhánh danh mục con
                     </p>
                 </div>
@@ -262,13 +269,13 @@ export default function CategoryTreeView({
                             setExpandedCategories(allIds);
                         }
                     }}
-                    className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="px-3 md:px-4 py-2 text-xs md:text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors self-start sm:self-auto"
                 >
                     {expandedCategories.size > 0 ? "Thu gọn tất cả" : "Mở rộng tất cả"}
                 </button>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-2 md:p-4 overflow-x-auto">
                 {rootCategories.map((category, idx) =>
                     renderTreeNode(category, 0, idx === rootCategories.length - 1, [])
                 )}

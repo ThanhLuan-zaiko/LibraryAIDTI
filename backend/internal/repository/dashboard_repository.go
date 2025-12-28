@@ -163,7 +163,7 @@ func (r *dashboardRepository) GetCategoryTree() ([]domain.CategoryNode, error) {
 		return nil, err
 	}
 
-	// Build tree structure using pointers
+	// Build tree structure using map for O(1) lookups
 	nodeMap := make(map[string]*domain.CategoryNode)
 
 	// First pass: create all nodes
@@ -179,16 +179,16 @@ func (r *dashboardRepository) GetCategoryTree() ([]domain.CategoryNode, error) {
 		nodeMap[cat.ID] = node
 	}
 
-	// Second pass: build relationships
-	var roots []*domain.CategoryNode
+	// Second pass: build parent-child relationships
+	var rootNodes []*domain.CategoryNode
 	for _, cat := range categories {
 		node := nodeMap[cat.ID]
 		if cat.ParentID == nil {
-			// Root category
+			// This is a root node
 			node.Level = 0
-			roots = append(roots, node)
+			rootNodes = append(rootNodes, node)
 		} else {
-			// Child category
+			// This is a child node - attach to parent
 			if parent, exists := nodeMap[*cat.ParentID]; exists {
 				node.Level = parent.Level + 1
 				parent.Children = append(parent.Children, *node)
@@ -196,10 +196,37 @@ func (r *dashboardRepository) GetCategoryTree() ([]domain.CategoryNode, error) {
 		}
 	}
 
-	// Convert from pointers to values for return
-	result := make([]domain.CategoryNode, len(roots))
-	for i, root := range roots {
-		result[i] = *root
+	// Helper function to recursively build complete tree
+	var buildCompleteTree func(node *domain.CategoryNode) domain.CategoryNode
+	buildCompleteTree = func(node *domain.CategoryNode) domain.CategoryNode {
+		result := domain.CategoryNode{
+			ID:           node.ID,
+			Name:         node.Name,
+			Slug:         node.Slug,
+			Level:        node.Level,
+			ArticleCount: node.ArticleCount,
+			Children:     []domain.CategoryNode{},
+		}
+
+		// Recursively build children
+		for _, childValue := range node.Children {
+			// Find the pointer to this child in the map
+			childID := childValue.ID.String()
+			if childPtr, exists := nodeMap[childID]; exists {
+				// Recursively build this child's subtree
+				completeChild := buildCompleteTree(childPtr)
+				result.Children = append(result.Children, completeChild)
+			}
+		}
+
+		return result
+	}
+
+	// Build complete trees for all root nodes
+	result := make([]domain.CategoryNode, 0, len(rootNodes))
+	for _, rootPtr := range rootNodes {
+		completeRoot := buildCompleteTree(rootPtr)
+		result = append(result, completeRoot)
 	}
 
 	return result, nil

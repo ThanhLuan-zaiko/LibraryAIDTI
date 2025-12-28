@@ -124,7 +124,13 @@ export default function CategoryHierarchicalTable({
     };
 
     const getChildrenCount = (category: Category): number => {
-        return category.children?.length || 0;
+        if (!category.children || category.children.length === 0) return 0;
+
+        let count = category.children.length;
+        category.children.forEach(child => {
+            count += getChildrenCount(child);
+        });
+        return count;
     };
 
     const renderCategory = (category: Category, level: number = 0) => {
