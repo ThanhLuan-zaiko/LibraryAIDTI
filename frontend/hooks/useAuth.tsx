@@ -6,11 +6,17 @@ import AccountLockedModal from '@/components/auth/AccountLockedModal';
 import PermissionUpdateModal from '@/components/auth/PermissionUpdateModal';
 import { usePathname, useRouter } from 'next/navigation';
 
+interface Role {
+    id: string;
+    name: string;
+    description: string;
+}
+
 interface User {
     id: string;
     email: string;
     full_name: string;
-    roles: string[];
+    roles: Role[];
 }
 
 interface AuthContextType {
@@ -35,28 +41,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const pathname = usePathname();
     const router = useRouter();
 
+    const userRef = React.useRef<User | null>(user);
+    const pathnameRef = React.useRef(pathname);
+
+    useEffect(() => {
+        userRef.current = user;
+    }, [user]);
+
+    useEffect(() => {
+        pathnameRef.current = pathname;
+    }, [pathname]);
+
     const refreshUser = async () => {
         try {
             const data = await authService.getMe();
             const newUser = data.user;
+            const currentUser = userRef.current;
+            const currentPath = pathnameRef.current;
 
-            if (user && newUser) {
-                const oldRoles = user.roles || [];
+            if (currentUser && newUser) {
+                const oldRoles = currentUser.roles || [];
                 const newRoles = newUser.roles || [];
 
                 const privilegedRoles = ['ADMIN', 'EDITOR', 'AUTHOR'];
-                const hadPrivileged = oldRoles.some((r: string) => privilegedRoles.includes(r));
-                const hasPrivileged = newRoles.some((r: string) => privilegedRoles.includes(r));
+
+                // Helper to check if any role matches privileged roles
+                const hasPrivilege = (roles: Role[]) =>
+                    roles.some((r: Role) => r && r.name && privilegedRoles.includes(r.name));
+
+                const hadPrivileged = hasPrivilege(oldRoles);
+                const hasPrivileged = hasPrivilege(newRoles);
 
                 const lostPrivileged = hadPrivileged && !hasPrivileged;
                 const gainedPrivileged = !hadPrivileged && hasPrivileged;
 
                 // If currently on admin route and lost all privileged roles
-                if (lostPrivileged && pathname?.startsWith('/admin')) {
+                if (lostPrivileged && currentPath?.startsWith('/admin')) {
                     setPermissionModal({ isOpen: true, type: 'demoted' });
+                    // Do not update user state yet, to keep them on the page for the notification
+                    return;
                 } else if (gainedPrivileged) {
                     // Show promotion notification if not on admin page
-                    if (!pathname?.startsWith('/admin')) {
+                    if (!currentPath?.startsWith('/admin')) {
                         setPermissionModal({ isOpen: true, type: 'promoted' });
                     }
                 }
@@ -64,6 +90,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             setUser(newUser);
         } catch (error: any) {
+            // Only log if it's not a 401 (Unauthorized) to avoid dev overlay for guests
+            if (error.response?.status !== 401) {
+                console.error("Không thể tải thông tin người dùng:", error);
+            }
             setUser(null);
         } finally {
             setLoading(false);
@@ -86,7 +116,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
             const host = apiUrl.replace(/^https?:\/\//, "").split('/')[0];
 
-            socket = new WebSocket(`${protocol}//${host}/api/v1/ws`);
+            const wsUrl = `${protocol}//${host}/api/v1/ws`;
+            socket = new WebSocket(wsUrl);
 
             socket.onmessage = (event) => {
                 try {
@@ -153,6 +184,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     setPermissionModal({ ...permissionModal, isOpen: false });
                     if (permissionModal.type === 'demoted') {
                         router.push('/');
+                        // Trigger refresh to update state after navigation
+                        setTimeout(() => refreshUser(), 500);
                     }
                 }}
             />

@@ -43,13 +43,13 @@ export default function AdminLayout({
 
     useEffect(() => {
         if (!loading) {
-            if (!user || !user.roles || !user.roles.includes('ADMIN')) {
+            if (!user || !user.roles || !user.roles.some(r => r.name === 'ADMIN')) {
                 router.push("/");
             }
         }
     }, [user, loading, router]);
 
-    if (loading || !user || !user.roles.includes('ADMIN')) {
+    if (loading || !user || !user.roles || !user.roles.some(r => r.name === 'ADMIN')) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-gray-50">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>

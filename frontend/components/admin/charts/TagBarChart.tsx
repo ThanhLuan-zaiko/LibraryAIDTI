@@ -7,6 +7,7 @@ import { TagStats, tagService } from '@/services/tag.service';
 export default function TagBarChart() {
     const [data, setData] = useState<TagStats[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -14,7 +15,7 @@ export default function TagBarChart() {
                 const stats = await tagService.getStats();
                 setData(stats || []);
             } catch (error) {
-                console.error('Failed to fetch tag stats:', error);
+                setError("Không thể tải dữ liệu thống kê.");
             } finally {
                 setLoading(false);
             }

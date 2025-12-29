@@ -12,22 +12,28 @@ interface PermissionUpdateModalProps {
 export default function PermissionUpdateModal({ isOpen, onRedirect, type }: PermissionUpdateModalProps) {
     const [countdown, setCountdown] = useState(10);
 
+    // Reset countdown when modal opens
     useEffect(() => {
-        if (!isOpen || type === 'promoted') return;
+        if (isOpen && type === 'demoted') {
+            setCountdown(10);
+        }
+    }, [isOpen, type]);
+
+    useEffect(() => {
+        if (!isOpen || type === 'promoted' || countdown <= 0) return;
 
         const timer = setInterval(() => {
-            setCountdown((prev) => {
-                if (prev <= 1) {
-                    clearInterval(timer);
-                    onRedirect();
-                    return 0;
-                }
-                return prev - 1;
-            });
+            setCountdown((prev) => prev - 1);
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [isOpen, onRedirect, type]);
+    }, [isOpen, type, countdown]);
+
+    useEffect(() => {
+        if (isOpen && type === 'demoted' && countdown <= 0) {
+            onRedirect();
+        }
+    }, [countdown, isOpen, type, onRedirect]);
 
     if (!isOpen) return null;
 

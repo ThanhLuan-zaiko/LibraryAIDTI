@@ -69,12 +69,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	session.SessionManager.Put(c.Request.Context(), "full_name", user.FullName)
 
 	c.JSON(http.StatusOK, gin.H{
-		"user": gin.H{
-			"id":        user.ID,
-			"email":     user.Email,
-			"roles":     roles,
-			"full_name": user.FullName,
-		},
+		"user": user,
 	})
 }
 
@@ -158,17 +153,24 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 }
 
 func (h *AuthHandler) GetMe(c *gin.Context) {
-	userID, _ := c.Get("user_id")
-	email, _ := c.Get("email")
-	roles, _ := c.Get("roles")
-	fullName, _ := c.Get("full_name")
+	val, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Không thể xác định người dùng"})
+		return
+	}
+	userID, ok := val.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Định dạng người dùng không hợp lệ"})
+		return
+	}
+
+	user, err := h.authService.GetMe(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lấy thông tin người dùng"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"user": gin.H{
-			"id":        userID,
-			"email":     email,
-			"roles":     roles,
-			"full_name": fullName,
-		},
+		"user": user,
 	})
 }

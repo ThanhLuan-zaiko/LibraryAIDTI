@@ -24,6 +24,7 @@ export default function CategoryModal({
         description: "",
         is_active: true
     });
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (editingCategory) {
@@ -62,7 +63,7 @@ export default function CategoryModal({
             onSuccess();
             onClose();
         } catch (error) {
-            console.error("Failed to save category:", error);
+            setError("Không thể lưu danh mục.");
         }
     };
 

@@ -18,6 +18,7 @@ export default function TagModal({
         name: "",
         slug: ""
     });
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (editingTag) {
@@ -45,7 +46,7 @@ export default function TagModal({
             onSuccess();
             onClose();
         } catch (error) {
-            console.error("Failed to save tag:", error);
+            setError("Không thể lưu thẻ.");
         }
     };
 

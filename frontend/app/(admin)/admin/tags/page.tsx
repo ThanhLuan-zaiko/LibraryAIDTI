@@ -12,6 +12,7 @@ export default function TagsPage() {
     const [tags, setTags] = useState<Tag[]>([]);
     const [stats, setStats] = useState<TagStats[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     // UI States
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,7 +35,7 @@ export default function TagsPage() {
             setTags(tagsData);
             setStats(statsData);
         } catch (error) {
-            console.error("Failed to fetch data:", error);
+            setError("Không thể tải dữ liệu thẻ.");
         } finally {
             setLoading(false);
         }
@@ -46,7 +47,7 @@ export default function TagsPage() {
             setTags(data);
             tagService.getStats().then(setStats);
         } catch (error) {
-            console.error("Failed to fetch tags:", error);
+            setError("Không thể tải dữ liệu thẻ.");
         }
     };
 
@@ -74,7 +75,7 @@ export default function TagsPage() {
             setIsDeleteModalOpen(false);
             setTagToDelete(null);
         } catch (error) {
-            console.error("Failed to delete tag:", error);
+            setError("Không thể xóa thẻ.");
         } finally {
             setDeleting(false);
         }

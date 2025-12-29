@@ -36,6 +36,7 @@ export default function CategoryManager() {
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // View Mode State with localStorage
     const [viewMode, setViewMode] = useState<'hierarchical' | 'flat' | 'tree'>(() => {
@@ -78,7 +79,7 @@ export default function CategoryManager() {
             setIsDeleteModalOpen(false);
             setCategoryToDelete(null);
         } catch (error) {
-            console.error("Failed to delete category:", error);
+            setError("Không thể xóa danh mục.");
         } finally {
             setDeleting(false);
         }

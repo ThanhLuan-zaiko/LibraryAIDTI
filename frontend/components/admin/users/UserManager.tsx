@@ -39,6 +39,7 @@ export default function UserManager() {
 
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Handlers
     const handleEdit = (user: User) => {
@@ -73,7 +74,7 @@ export default function UserManager() {
             refreshData();
             setIsDeleteModalOpen(false);
         } catch (error) {
-            console.error("Failed to toggle user status:", error);
+            setError("Không thể thay đổi trạng thái người dùng.");
         } finally {
             setDeleting(false);
         }

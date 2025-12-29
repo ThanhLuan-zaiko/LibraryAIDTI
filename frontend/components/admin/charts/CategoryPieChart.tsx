@@ -9,6 +9,7 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'
 export default function CategoryPieChart() {
     const [data, setData] = useState<CategoryStats[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -16,7 +17,7 @@ export default function CategoryPieChart() {
                 const stats = await categoryService.getStats();
                 setData(stats || []);
             } catch (error) {
-                console.error('Failed to fetch category stats:', error);
+                setError("Không thể tải dữ liệu thống kê.");
             } finally {
                 setLoading(false);
             }

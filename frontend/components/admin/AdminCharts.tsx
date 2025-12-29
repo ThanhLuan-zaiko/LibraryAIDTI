@@ -14,10 +14,10 @@ import {
     BarChart,
     Bar,
 } from "recharts";
-import { AnalyticsData, CategoryDistribution } from "@/services/dashboard.service";
+import { DashboardAnalytics, CategoryDistribution } from "@/services/dashboard.service";
 
 interface AdminChartsProps {
-    analytics: AnalyticsData[];
+    analytics: DashboardAnalytics[];
     categories: CategoryDistribution[];
 }
 
@@ -82,7 +82,7 @@ export default function AdminCharts({ analytics = [], categories = [] }: AdminCh
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <Pie
-                                data={categories}
+                                data={categories as any[]}
                                 cx="50%"
                                 cy="50%"
                                 innerRadius={60}

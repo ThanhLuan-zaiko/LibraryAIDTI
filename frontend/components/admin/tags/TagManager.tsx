@@ -32,6 +32,7 @@ export default function TagManager() {
     const [editingTag, setEditingTag] = useState<Tag | null>(null);
     const [tagToDelete, setTagToDelete] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Handlers
     const handleOpenModal = (tag?: Tag) => {
@@ -58,7 +59,7 @@ export default function TagManager() {
             setIsDeleteModalOpen(false);
             setTagToDelete(null);
         } catch (error) {
-            console.error("Failed to delete tag:", error);
+            setError("Không thể xóa thẻ.");
         } finally {
             setDeleting(false);
         }

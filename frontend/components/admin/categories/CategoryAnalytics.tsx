@@ -19,6 +19,7 @@ export default function CategoryAnalytics() {
     const [hierarchyStats, setHierarchyStats] = useState<CategoryHierarchyStats | null>(null);
     const [categoryTree, setCategoryTree] = useState<CategoryTreeData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -34,7 +35,7 @@ export default function CategoryAnalytics() {
                 setHierarchyStats(hierarchyData);
                 setCategoryTree(treeData);
             } catch (error) {
-                console.error("Failed to fetch analytics:", error);
+                setError("Không thể tải dữ liệu thống kê.");
             } finally {
                 setLoading(false);
             }

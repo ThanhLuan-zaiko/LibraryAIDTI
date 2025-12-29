@@ -18,7 +18,6 @@ export default function AdminDashboard() {
                 const result = await getDashboardData();
                 setData(result);
             } catch (err) {
-                console.error("Failed to fetch dashboard data:", err);
                 setError("Không thể tải dữ liệu thống kê.");
             } finally {
                 setLoading(false);

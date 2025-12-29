@@ -7,6 +7,7 @@ import { userService, UserStats as UserStatsType } from "@/services/user.service
 export default function UserStats() {
     const [stats, setStats] = useState<UserStatsType | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -14,7 +15,7 @@ export default function UserStats() {
                 const data = await userService.getStats();
                 setStats(data);
             } catch (error) {
-                console.error("Failed to fetch user stats:", error);
+                setError("Không thể tải dữ liệu thống kê.");
             } finally {
                 setLoading(false);
             }

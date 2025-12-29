@@ -98,7 +98,7 @@ const Navbar = () => {
                             <IoPersonOutline size={20} />
                             <span className="font-semibold">Thông tin tài khoản</span>
                         </button>
-                        {user.roles && user.roles.includes('ADMIN') && (
+                        {user.roles && user.roles.some((r: any) => r.name === 'ADMIN') && (
                             <Link
                                 href="/admin"
                                 onClick={() => setIsOpen(false)}
@@ -151,7 +151,7 @@ const Navbar = () => {
                                     <IoPersonOutline size={18} />
                                     <span>Thông tin & Mật khẩu</span>
                                 </button>
-                                {user.roles && user.roles.includes('ADMIN') && (
+                                {user.roles && user.roles.some((r: any) => r.name === 'ADMIN') && (
                                     <Link
                                         href="/admin"
                                         onClick={() => setIsProfileDropdownOpen(false)}

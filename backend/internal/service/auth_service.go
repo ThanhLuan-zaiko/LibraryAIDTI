@@ -96,3 +96,7 @@ func (s *AuthService) ChangePassword(userID uuid.UUID, oldPassword, newPassword 
 	user.PasswordHash = hashedPassword
 	return s.repo.UpdateUser(user)
 }
+
+func (s *AuthService) GetMe(userID uuid.UUID) (*domain.User, error) {
+	return s.repo.GetUserByID(userID)
+}
