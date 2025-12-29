@@ -2,6 +2,8 @@ import { User, Role } from "@/services/user.service";
 import { FiEdit2, FiTrash2, FiUser, FiArrowUp, FiArrowDown, FiKey, FiMoreVertical, FiShield } from "react-icons/fi";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
+import { useAuth } from "@/hooks/useAuth";
+import { FiCircle } from "react-icons/fi";
 
 interface UserTableProps {
     users: User[];
@@ -15,6 +17,8 @@ interface UserTableProps {
 }
 
 export default function UserTable({ users, loading, sortField, sortOrder, onEdit, onDelete, onSort, onAssignRoles }: UserTableProps) {
+    const { onlineUsers } = useAuth();
+
     if (loading) {
         return (
             <div className="p-12 flex flex-col items-center justify-center text-gray-400">
@@ -115,9 +119,18 @@ export default function UserTable({ users, loading, sortField, sortOrder, onEdit
 
                         <div className="w-[20%] text-sm text-gray-500">
                             <p>{format(new Date(user.created_at), 'dd/MM/yyyy', { locale: vi })}</p>
-                            <p className="text-[10px] text-gray-400">
-                                {user.last_login_at ? `Gần nhất: ${format(new Date(user.last_login_at), 'dd/MM/yyyy HH:mm', { locale: vi })}` : 'Chưa đăng nhập'}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                                {onlineUsers.has(String(user.id)) ? (
+                                    <>
+                                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                        <p className="text-[10px] text-green-600 font-medium tracking-tight">Trực tuyến</p>
+                                    </>
+                                ) : (
+                                    <p className="text-[10px] text-gray-400">
+                                        {user.last_login_at ? `Gần nhất: ${format(new Date(user.last_login_at), 'dd/MM/yyyy HH:mm', { locale: vi })}` : 'Chưa đăng nhập'}
+                                    </p>
+                                )}
+                            </div>
                         </div>
 
                         <div className="w-[15%] flex justify-end space-x-1 pr-2">

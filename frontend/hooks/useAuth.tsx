@@ -25,6 +25,7 @@ interface AuthContextType {
     login: (data: any) => Promise<void>;
     logout: () => Promise<void>;
     refreshUser: () => Promise<void>;
+    onlineUsers: Set<string>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,6 +34,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [isLocked, setIsLocked] = useState(false);
+    const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
     const [permissionModal, setPermissionModal] = useState<{ isOpen: boolean; type: 'promoted' | 'demoted' }>({
         isOpen: false,
         type: 'promoted'
@@ -65,7 +67,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
                 const privilegedRoles = ['ADMIN', 'EDITOR', 'AUTHOR'];
 
-                // Helper to check if any role matches privileged roles
                 const hasPrivilege = (roles: Role[]) =>
                     roles.some((r: Role) => r && r.name && privilegedRoles.includes(r.name));
 
@@ -75,13 +76,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 const lostPrivileged = hadPrivileged && !hasPrivileged;
                 const gainedPrivileged = !hadPrivileged && hasPrivileged;
 
-                // If currently on admin route and lost all privileged roles
                 if (lostPrivileged && currentPath?.startsWith('/admin')) {
                     setPermissionModal({ isOpen: true, type: 'demoted' });
-                    // Do not update user state yet, to keep them on the page for the notification
                     return;
                 } else if (gainedPrivileged) {
-                    // Show promotion notification if not on admin page
                     if (!currentPath?.startsWith('/admin')) {
                         setPermissionModal({ isOpen: true, type: 'promoted' });
                     }
@@ -90,9 +88,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             setUser(newUser);
         } catch (error: any) {
-            // Only log if it's not a 401 (Unauthorized) to avoid dev overlay for guests
             if (error.response?.status !== 401) {
-                console.error("Không thể tải thông tin người dùng:", error);
+                console.error("Failed to load user info:", error);
             }
             setUser(null);
         } finally {
@@ -100,7 +97,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    // Initial user fetch
     useEffect(() => {
         refreshUser();
     }, []);
@@ -110,35 +106,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         let socket: WebSocket | null = null;
 
         if (user && !isLocked) {
-            // Establish WebSocket connection
             const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-            // Extract only the domain and port from API_URL
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
             const host = apiUrl.replace(/^https?:\/\//, "").split('/')[0];
-
             const wsUrl = `${protocol}//${host}/api/v1/ws`;
-            socket = new WebSocket(wsUrl);
 
-            socket.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    if (data.type === "account_locked") {
-                        setIsLocked(true);
-                    } else if (data.type === "role_updated") {
-                        refreshUser();
+            try {
+                socket = new WebSocket(wsUrl);
+
+                socket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === "account_locked") {
+                            setIsLocked(true);
+                        } else if (data.type === "role_updated") {
+                            refreshUser();
+                        } else if (data.type === "online_list") {
+                            const ids = (data.payload.user_ids || []) as string[];
+                            setOnlineUsers(new Set(ids));
+                        } else if (data.type === "user_status") {
+                            const { user_id, status } = data.payload;
+                            setOnlineUsers(prev => {
+                                const newSet = new Set(prev);
+                                if (status === "online") {
+                                    newSet.add(user_id);
+                                } else {
+                                    newSet.delete(user_id);
+                                }
+                                return newSet;
+                            });
+                        }
+                    } catch (err) {
+                        console.error("WS message parse error:", err);
                     }
-                } catch (err) {
-                    console.error("Error parsing WS message:", err);
-                }
-            };
+                };
 
-            socket.onclose = () => {
-                console.log("WebSocket disconnected");
-            };
-
-            socket.onerror = (err) => {
-                console.error("WebSocket error:", err);
-            };
+                socket.onerror = (err) => {
+                    console.error("WS connection error:", err);
+                };
+            } catch (err) {
+                console.error("Failed to establish WS connection:", err);
+            }
         }
 
         return () => {
@@ -148,7 +156,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
     }, [user?.id, isLocked]);
 
-    // Global event listener
     useEffect(() => {
         const handleLockEvent = () => setIsLocked(true);
         window.addEventListener("account-locked", handleLockEvent);
@@ -174,7 +181,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
+        <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, onlineUsers }}>
             {children}
             <AccountLockedModal isOpen={isLocked} onLogout={logout} />
             <PermissionUpdateModal
@@ -184,7 +191,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     setPermissionModal({ ...permissionModal, isOpen: false });
                     if (permissionModal.type === 'demoted') {
                         router.push('/');
-                        // Trigger refresh to update state after navigation
                         setTimeout(() => refreshUser(), 500);
                     }
                 }}

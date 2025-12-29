@@ -46,9 +46,9 @@ type Hub struct {
 
 func NewHub() *Hub {
 	return &Hub{
-		Broadcast:  make(chan []byte),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
+		Broadcast:  make(chan []byte, 100),
+		Register:   make(chan *Client, 100),
+		Unregister: make(chan *Client, 100),
 		Clients:    make(map[uuid.UUID][]*Client),
 	}
 }
@@ -59,7 +59,21 @@ func (h *Hub) Run() {
 		case client := <-h.Register:
 			h.mu.Lock()
 			h.Clients[client.UserID] = append(h.Clients[client.UserID], client)
+			isFirstConnection := len(h.Clients[client.UserID]) == 1
+
+			// Get list of all currently online user IDs
+			onlineUserIDs := make([]uuid.UUID, 0, len(h.Clients))
+			for id := range h.Clients {
+				onlineUserIDs = append(onlineUserIDs, id)
+			}
 			h.mu.Unlock()
+
+			// Send initial list to the new client
+			h.sendOnlineList(client, onlineUserIDs)
+
+			if isFirstConnection {
+				h.broadcastStatus(client.UserID, "online")
+			}
 		case client := <-h.Unregister:
 			h.mu.Lock()
 			if clients, ok := h.Clients[client.UserID]; ok {
@@ -71,6 +85,9 @@ func (h *Hub) Run() {
 				}
 				if len(h.Clients[client.UserID]) == 0 {
 					delete(h.Clients, client.UserID)
+					h.mu.Unlock()
+					h.broadcastStatus(client.UserID, "offline")
+					h.mu.Lock()
 				}
 			}
 			h.mu.Unlock()
@@ -87,6 +104,41 @@ func (h *Hub) Run() {
 			}
 			h.mu.RUnlock()
 		}
+	}
+}
+
+func (h *Hub) broadcastStatus(userID uuid.UUID, status string) {
+	go func() {
+		data, err := json.Marshal(map[string]interface{}{
+			"type": "user_status",
+			"payload": map[string]interface{}{
+				"user_id": userID,
+				"status":  status,
+			},
+		})
+		if err != nil {
+			log.Printf("Error marshaling status message: %v", err)
+			return
+		}
+		h.Broadcast <- data
+	}()
+}
+
+func (h *Hub) sendOnlineList(client *Client, userIDs []uuid.UUID) {
+	data, err := json.Marshal(map[string]interface{}{
+		"type": "online_list",
+		"payload": map[string]interface{}{
+			"user_ids": userIDs,
+		},
+	})
+	if err != nil {
+		log.Printf("Error marshaling online list message: %v", err)
+		return
+	}
+	select {
+	case client.Send <- data:
+	default:
+		log.Printf("Failed to send online list to client %s", client.UserID)
 	}
 }
 
@@ -153,12 +205,6 @@ func (c *Client) writePump() {
 				return
 			}
 			w.Write(message)
-
-			n := len(c.Send)
-			for i := 0; i < n; i++ {
-				w.Write([]byte{'\n'})
-				w.Write(<-c.Send)
-			}
 
 			if err := w.Close(); err != nil {
 				return
