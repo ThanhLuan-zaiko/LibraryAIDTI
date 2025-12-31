@@ -18,7 +18,9 @@ type Router struct {
 	authHandler      *handler.AuthHandler
 	statsHandler     *handler.StatsHandler
 	dashboardHandler *handler.DashboardHandler
+	parentHandler    *handler.UserHandler // Alias or keeping userHandler is fine, just adding uploadHandler
 	userHandler      *handler.UserHandler
+	uploadHandler    *handler.UploadHandler
 	userRepo         domain.UserRepository
 	wsHub            *ws.Hub
 	cache            *middleware.ResponseCache
@@ -32,6 +34,7 @@ func NewRouter(
 	statsHandler *handler.StatsHandler,
 	dashboardHandler *handler.DashboardHandler,
 	userHandler *handler.UserHandler,
+	uploadHandler *handler.UploadHandler,
 	wsHub *ws.Hub,
 ) *Router {
 	return &Router{
@@ -42,6 +45,7 @@ func NewRouter(
 		statsHandler:     statsHandler,
 		dashboardHandler: dashboardHandler,
 		userHandler:      userHandler,
+		uploadHandler:    uploadHandler,
 		userRepo:         userHandler.GetService().GetRepo(),
 		wsHub:            wsHub,
 		cache:            middleware.NewResponseCache(),
@@ -73,6 +77,9 @@ func (r *Router) Setup(engine *gin.Engine) {
 		c.Next()
 	})
 
+	// Serve uploaded files
+	engine.Static("/uploads", "./uploads")
+
 	// WebSocket route - bypass global rate limiting to avoid connection drops during navigation
 	engine.GET("/api/v1/ws", func(c *gin.Context) {
 		ws.ServeWs(r.wsHub, c)
@@ -90,14 +97,14 @@ func (r *Router) Setup(engine *gin.Engine) {
 			auth.POST("/logout", r.authHandler.Logout)
 		}
 
-		// Article routes
+		// Upload route
+		v1.POST("/upload", r.uploadHandler.UploadImage)
+
+		// Article routes (Public read)
 		articles := v1.Group("/articles")
 		{
-			articles.POST("", r.articleHandler.CreateArticle)
 			articles.GET("", r.articleHandler.GetArticles)
 			articles.GET("/:id", r.articleHandler.GetArticle)
-			articles.PUT("/:id", r.articleHandler.UpdateArticle)
-			articles.DELETE("/:id", r.articleHandler.DeleteArticle)
 		}
 
 		// Category routes
@@ -151,6 +158,16 @@ func (r *Router) Setup(engine *gin.Engine) {
 				users.DELETE("/:id", r.userHandler.DeleteUser)
 				users.PUT("/:id/roles", r.userHandler.AssignRoles)
 			}
+
+			// Article Management (Protected)
+			articles := protected.Group("/articles")
+			{
+				articles.POST("", r.articleHandler.CreateArticle)
+				articles.PUT("/:id", r.articleHandler.UpdateArticle)
+				articles.DELETE("/:id", r.articleHandler.DeleteArticle)
+				articles.PUT("/:id/status", r.articleHandler.ChangeStatus)
+			}
+
 			protected.GET("/roles", r.userHandler.GetRoles)
 		}
 	}

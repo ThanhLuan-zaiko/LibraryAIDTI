@@ -26,6 +26,7 @@ interface AuthContextType {
     logout: () => Promise<void>;
     refreshUser: () => Promise<void>;
     onlineUsers: Set<string>;
+    socket: WebSocket | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +35,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [isLocked, setIsLocked] = useState(false);
+    const [socket, setSocket] = useState<WebSocket | null>(null);
     const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
     const [permissionModal, setPermissionModal] = useState<{ isOpen: boolean; type: 'promoted' | 'demoted' }>({
         isOpen: false,
@@ -103,7 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // WebSocket connection management
     useEffect(() => {
-        let socket: WebSocket | null = null;
+        let localSocket: WebSocket | null = null;
 
         if (user && !isLocked) {
             const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -112,9 +114,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const wsUrl = `${protocol}//${host}/api/v1/ws`;
 
             try {
-                socket = new WebSocket(wsUrl);
+                const ws = new WebSocket(wsUrl);
+                setSocket(ws);
+                localSocket = ws;
 
-                socket.onmessage = (event) => {
+                ws.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
                         if (data.type === "account_locked") {
@@ -141,7 +145,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     }
                 };
 
-                socket.onerror = (err) => {
+                ws.onerror = (err) => {
                     console.error("WS connection error:", err);
                 };
             } catch (err) {
@@ -150,9 +154,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         return () => {
-            if (socket) {
-                socket.close();
+            if (localSocket) {
+                localSocket.close();
             }
+            setSocket(null);
         };
     }, [user?.id, isLocked]);
 
@@ -181,7 +186,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, onlineUsers }}>
+        <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, onlineUsers, socket }}>
             {children}
             <AccountLockedModal isOpen={isLocked} onLogout={logout} />
             <PermissionUpdateModal

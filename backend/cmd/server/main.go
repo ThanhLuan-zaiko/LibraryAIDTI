@@ -47,7 +47,7 @@ func main() {
 	// 4. Setup dependency injection
 	articleRepo := repository.NewArticleRepository(db.DB)
 	categoryRepo := repository.NewCategoryRepository(db.DB)
-	articleService := service.NewArticleService(articleRepo)
+	articleService := service.NewArticleService(articleRepo, wsHub)
 	categoryService := service.NewCategoryService(categoryRepo)
 	articleHandler := handler.NewArticleHandler(articleService)
 	categoryHandler := handler.NewCategoryHandler(categoryService)
@@ -63,6 +63,8 @@ func main() {
 	statsRepo := repository.NewStatsRepository(db.DB)
 	statsService := service.NewStatsService(statsRepo)
 	statsHandler := handler.NewStatsHandler(statsService)
+
+	uploadHandler := handler.NewUploadHandler()
 
 	// 5. Setup Router
 	r := gin.Default()
@@ -80,7 +82,7 @@ func main() {
 	userService := service.NewUserService(userRepo, wsHub)
 	userHandler := handler.NewUserHandler(userService)
 
-	appRouter := router.NewRouter(articleHandler, categoryHandler, tagHandler, authHandler, statsHandler, dashboardHandler, userHandler, wsHub)
+	appRouter := router.NewRouter(articleHandler, categoryHandler, tagHandler, authHandler, statsHandler, dashboardHandler, userHandler, uploadHandler, wsHub)
 	appRouter.Setup(r)
 
 	// 6. Start Server

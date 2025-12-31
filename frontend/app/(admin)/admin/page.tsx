@@ -93,7 +93,7 @@ export default function AdminDashboard() {
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <h4 className="font-bold text-gray-800 mb-4">Lối tắt nhanh</h4>
                     <div className="grid grid-cols-1 gap-3">
-                        <Link href="/admin/articles/" className="flex items-center p-4 border border-gray-100 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all group">
+                        <Link href="/admin/articles/create" className="flex items-center p-4 border border-gray-100 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all group">
                             <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center mr-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                                 <span className="text-xl font-bold">+</span>
                             </div>

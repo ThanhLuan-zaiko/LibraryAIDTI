@@ -2,6 +2,7 @@ package repository
 
 import (
 	"backend/internal/domain"
+	"errors"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -16,31 +17,140 @@ func NewArticleRepository(db *gorm.DB) domain.ArticleRepository {
 }
 
 func (r *articleRepository) Create(article *domain.Article) error {
-	return r.db.Create(article).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(article).Error; err != nil {
+			return err
+		}
+		// If there are tags, we need to associate them
+		if len(article.Tags) > 0 {
+			if err := tx.Model(article).Association("Tags").Replace(article.Tags); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
-func (r *articleRepository) GetAll() ([]domain.Article, error) {
+func (r *articleRepository) GetAll(offset, limit int, filter map[string]interface{}) ([]domain.Article, int64, error) {
 	var articles []domain.Article
-	err := r.db.Preload("Category").Preload("Author").Find(&articles).Error
-	return articles, err
+	var total int64
+
+	query := r.db.Model(&domain.Article{}).
+		Preload("Category").
+		Preload("Author").
+		Preload("Tags")
+
+	if status, ok := filter["status"]; ok && status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	if categoryID, ok := filter["category_id"]; ok && categoryID != "" {
+		query = query.Where("category_id = ?", categoryID)
+	}
+
+	if search, ok := filter["search"]; ok && search != "" {
+		query = query.Where("title ILIKE ?", "%"+search.(string)+"%")
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if err := query.Offset(offset).Limit(limit).Order("created_at DESC").Find(&articles).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return articles, total, nil
 }
 
 func (r *articleRepository) GetByID(id uuid.UUID) (*domain.Article, error) {
 	var article domain.Article
-	err := r.db.Preload("Category").Preload("Author").First(&article, "id = ?", id).Error
-	return &article, err
+	err := r.db.Preload("Category").
+		Preload("Author").
+		Preload("Tags").
+		Preload("Images").
+		Preload("SEOMetadata").
+		Preload("Related").
+		Preload("Versions"). // Optional: might be heavy
+		First(&article, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &article, nil
 }
 
 func (r *articleRepository) GetBySlug(slug string) (*domain.Article, error) {
 	var article domain.Article
-	err := r.db.Preload("Category").Preload("Author").First(&article, "slug = ?", slug).Error
-	return &article, err
+	err := r.db.Preload("Category").
+		Preload("Author").
+		Preload("Tags").
+		Preload("Images").
+		Preload("SEOMetadata").
+		First(&article, "slug = ?", slug).Error
+	if err != nil {
+		return nil, err
+	}
+	return &article, nil
 }
 
 func (r *articleRepository) Update(article *domain.Article) error {
-	return r.db.Save(article).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// Update basic fields
+		if err := tx.Save(article).Error; err != nil {
+			return err
+		}
+
+		// Update Tags association
+		if err := tx.Model(article).Association("Tags").Replace(article.Tags); err != nil {
+			return err
+		}
+
+		// Update Images - delete old ones and insert new ones or smart update
+		// For simplicity, we might assuming Images are handled separately or replaced
+		// But usually we need to handle specific logic.
+		// Here we assume article.Images contains the Desired State.
+		// However, GORM's Replace might be safer for Images too if they are wholly owned.
+		if err := tx.Model(article).Association("Images").Replace(article.Images); err != nil {
+			return err
+		}
+
+		// Update SEO if exists
+		if article.SEOMetadata != nil {
+			var existingSEO domain.SeoMetadata
+			if err := tx.Where("article_id = ?", article.ID).First(&existingSEO).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					article.SEOMetadata.ArticleID = article.ID
+					if err := tx.Create(article.SEOMetadata).Error; err != nil {
+						return err
+					}
+				} else {
+					return err
+				}
+			} else {
+				// Update existing
+				article.SEOMetadata.ID = existingSEO.ID
+				if err := tx.Save(article.SEOMetadata).Error; err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
 }
 
 func (r *articleRepository) Delete(id uuid.UUID) error {
 	return r.db.Delete(&domain.Article{}, "id = ?", id).Error
+}
+
+func (r *articleRepository) AddTags(articleID uuid.UUID, tagIDs []uuid.UUID) error {
+	tags := make([]domain.Tag, len(tagIDs))
+	for i, id := range tagIDs {
+		tags[i] = domain.Tag{ID: id}
+	}
+	return r.db.Model(&domain.Article{ID: articleID}).Association("Tags").Append(tags)
+}
+
+func (r *articleRepository) UpdateStatus(id uuid.UUID, status domain.ArticleStatus) error {
+	return r.db.Model(&domain.Article{}).Where("id = ?", id).Update("status", status).Error
 }
