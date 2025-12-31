@@ -22,6 +22,7 @@ export interface Article {
     images?: {
         id: string;
         image_url: string;
+        is_primary?: boolean;
     }[];
 }
 
@@ -33,7 +34,19 @@ export interface ArticleInput {
     status: string;
     image_url?: string;
     is_featured?: boolean;
-    tags?: string[]; // IDs
+    images?: {
+        image_url?: string;
+        image_data?: string;
+        is_primary?: boolean;
+    }[];
+    tags?: { id?: string; name: string; slug?: string }[];
+    seo_metadata?: {
+        meta_title?: string;
+        meta_description?: string;
+        meta_keywords?: string;
+        og_image?: string;
+        canonical_url?: string;
+    };
 }
 
 export interface Pagination {

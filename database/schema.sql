@@ -475,3 +475,17 @@ SELECT * FROM users;
 SELECT * FROM roles;
 SELECT * FROM tags;
 SELECT * FROM categories;
+
+SELECT * FROM articles;
+SELECT * FROM article_images;
+SELECT * FROM article_versions;
+SELECT * FROM article_status_logs;
+SELECT * FROM article_tags;
+SELECT * FROM article_relations;
+
+SELECT * FROM article_media;
+SELECT * FROM article_media_versions;
+SELECT * FROM seo_metadata;
+SELECT * FROM article_seo_metadata;
+SELECT * FROM seo_redirects;
+SELECT * FROM article_seo_redirects;

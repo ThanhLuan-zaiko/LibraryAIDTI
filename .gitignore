@@ -18,6 +18,7 @@ node_modules/
 *.dylib
 bin/
 dist/
+public/
 
 # Next.js & Frontend Build
 .next/
@@ -54,3 +55,4 @@ next-env.d.ts
 # Go Workspace
 go.work
 go.work.sum
+uploads/

@@ -39,15 +39,25 @@ func main() {
 		&domain.User{},
 		&domain.Role{},
 		&domain.Permission{},
+		&domain.MediaFile{},
+		&domain.ArticleMedia{},
+		&domain.ArticleMediaVersion{},
+		&domain.SeoRedirect{},
+		&domain.ArticleSeoRedirect{},
 	)
 	if err != nil {
 		log.Fatalf("AutoMigration failed: %v", err)
 	}
 
 	// 4. Setup dependency injection
+	seoRepo := repository.NewSeoRepository(db.DB)
+	seoService := service.NewSeoService(seoRepo)
+
+	mediaRepo := repository.NewMediaRepository(db.DB)
+
 	articleRepo := repository.NewArticleRepository(db.DB)
 	categoryRepo := repository.NewCategoryRepository(db.DB)
-	articleService := service.NewArticleService(articleRepo, wsHub)
+	articleService := service.NewArticleService(articleRepo, mediaRepo, seoService, wsHub)
 	categoryService := service.NewCategoryService(categoryRepo)
 	articleHandler := handler.NewArticleHandler(articleService)
 	categoryHandler := handler.NewCategoryHandler(categoryService)

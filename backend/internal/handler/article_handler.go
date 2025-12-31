@@ -1,34 +1,73 @@
 package handler
 
 import (
+	"backend/internal/domain"
+	"backend/internal/utils"
 	"net/http"
 	"strconv"
-
-	"backend/internal/domain"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 type ArticleHandler struct {
-	service domain.ArticleService
+	service        domain.ArticleService
+	imageProcessor *utils.ImageProcessor
 }
 
 func NewArticleHandler(service domain.ArticleService) *ArticleHandler {
-	return &ArticleHandler{service: service}
+	return &ArticleHandler{
+		service:        service,
+		imageProcessor: utils.NewImageProcessor(),
+	}
+}
+
+// ArticleCreateRequest represents the request DTO with base64 images
+type ArticleCreateRequest struct {
+	Title        string               `json:"title" binding:"required"`
+	Content      string               `json:"content" binding:"required"`
+	Summary      string               `json:"summary"`
+	Slug         string               `json:"slug"`
+	CategoryID   *uuid.UUID           `json:"category_id"`
+	Status       domain.ArticleStatus `json:"status"`
+	IsFeatured   bool                 `json:"is_featured"`
+	AllowComment bool                 `json:"allow_comment"`
+	Tags         []domain.Tag         `json:"tags"`
+	Images       []Base64Image        `json:"images"` // base64 images
+	SeoMetadata  *domain.SeoMetadata  `json:"seo_metadata"`
+}
+
+type Base64Image struct {
+	ImageData string `json:"image_data"` // base64 encoded image
+	ImageUrl  string `json:"image_url"`  // existing image URL
+	IsPrimary bool   `json:"is_primary"`
 }
 
 func (h *ArticleHandler) CreateArticle(c *gin.Context) {
-	var article domain.Article
-	if err := c.ShouldBindJSON(&article); err != nil {
+	var req ArticleCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Set author from context (injected by AuthMiddleware)
+	// Create article first to get ID
+	article := domain.Article{
+		Title:        req.Title,
+		Content:      req.Content,
+		Summary:      req.Summary,
+		Slug:         req.Slug,
+		Status:       req.Status,
+		IsFeatured:   req.IsFeatured,
+		AllowComment: req.AllowComment,
+	}
+
+	if req.CategoryID != nil {
+		article.CategoryID = *req.CategoryID
+	}
+
+	// Set author from context
 	authorIDStr, exists := c.Get("user_id")
 	if exists {
-		// handle both string and uuid.UUID types just in case
 		switch v := authorIDStr.(type) {
 		case string:
 			authorID, _ := uuid.Parse(v)
@@ -38,8 +77,41 @@ func (h *ArticleHandler) CreateArticle(c *gin.Context) {
 		}
 	}
 
+	// Create article first
 	if err := h.service.CreateArticle(&article); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Process and save images
+	var articleImages []domain.ArticleImage
+	for _, img := range req.Images {
+		if img.ImageData != "" {
+			// Process base64 image
+			url, err := h.imageProcessor.ProcessBase64Image(img.ImageData, article.ID.String())
+			if err != nil {
+				// Log error but continue with other images
+				continue
+			}
+
+			articleImages = append(articleImages, domain.ArticleImage{
+				ArticleID: article.ID,
+				ImageURL:  url,
+			})
+		}
+	}
+
+	// Update article with images
+	article.Images = articleImages
+	article.Tags = req.Tags
+	if req.SeoMetadata != nil {
+		req.SeoMetadata.ArticleID = article.ID
+		article.SEOMetadata = req.SeoMetadata
+	}
+
+	// Update to save images, tags, and SEO
+	if err := h.service.UpdateArticle(&article); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update article with images"})
 		return
 	}
 
@@ -107,14 +179,65 @@ func (h *ArticleHandler) UpdateArticle(c *gin.Context) {
 		return
 	}
 
-	var article domain.Article
-	if err := c.ShouldBindJSON(&article); err != nil {
+	var req ArticleCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	article.ID = id
 
-	if err := h.service.UpdateArticle(&article); err != nil {
+	// Get existing article
+	article, err := h.service.GetArticleByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Article not found"})
+		return
+	}
+
+	// Update fields
+	article.Title = req.Title
+	article.Content = req.Content
+	article.Summary = req.Summary
+	article.Slug = req.Slug
+	article.Status = req.Status
+	article.IsFeatured = req.IsFeatured
+	article.AllowComment = req.AllowComment
+
+	if req.CategoryID != nil {
+		article.CategoryID = *req.CategoryID
+	}
+
+	// Synchronize images: keep existing ones from request and add new ones
+	var finalImages []domain.ArticleImage
+
+	// Process images from request
+	for _, imgReq := range req.Images {
+		if imgReq.ImageData != "" {
+			// New base64 image
+			url, err := h.imageProcessor.ProcessBase64Image(imgReq.ImageData, article.ID.String())
+			if err != nil {
+				continue
+			}
+			finalImages = append(finalImages, domain.ArticleImage{
+				ArticleID: article.ID,
+				ImageURL:  url,
+			})
+		} else if imgReq.ImageUrl != "" {
+			// Existing image URL
+			finalImages = append(finalImages, domain.ArticleImage{
+				ArticleID: article.ID,
+				ImageURL:  imgReq.ImageUrl,
+			})
+		}
+	}
+
+	article.Images = finalImages
+	article.Tags = req.Tags
+
+	if req.SeoMetadata != nil {
+		req.SeoMetadata.ArticleID = article.ID
+		article.SEOMetadata = req.SeoMetadata
+	}
+
+	if err := h.service.UpdateArticle(article); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -129,6 +252,9 @@ func (h *ArticleHandler) DeleteArticle(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
 		return
 	}
+
+	// Cleanup images before deleting article
+	h.imageProcessor.CleanupArticleImages(id.String())
 
 	if err := h.service.DeleteArticle(id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

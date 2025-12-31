@@ -12,14 +12,18 @@ import (
 )
 
 type articleService struct {
-	repo domain.ArticleRepository
-	hub  *ws.Hub // Directly using Hub for simplicity, ideally should be an interface
+	repo       domain.ArticleRepository
+	mediaRepo  domain.MediaRepository
+	seoService domain.SeoService
+	hub        *ws.Hub // Directly using Hub for simplicity
 }
 
-func NewArticleService(repo domain.ArticleRepository, hub *ws.Hub) domain.ArticleService {
+func NewArticleService(repo domain.ArticleRepository, mediaRepo domain.MediaRepository, seoService domain.SeoService, hub *ws.Hub) domain.ArticleService {
 	return &articleService{
-		repo: repo,
-		hub:  hub,
+		repo:       repo,
+		mediaRepo:  mediaRepo,
+		seoService: seoService,
+		hub:        hub,
 	}
 }
 
@@ -76,13 +80,17 @@ func (s *articleService) GetArticleBySlug(slug string) (*domain.Article, error) 
 }
 
 func (s *articleService) UpdateArticle(article *domain.Article) error {
-	// 1. Get existing to check status and create version
 	existing, err := s.repo.GetByID(article.ID)
 	if err != nil {
 		return err
 	}
 
-	// 2. Create Version if content/title changed
+	if existing.Slug != article.Slug {
+		if err := s.seoService.CreateArticleRedirect(article.ID, existing.Slug, article.Slug); err != nil {
+			return err
+		}
+	}
+
 	if existing.Content != article.Content || existing.Title != article.Title {
 		version := domain.ArticleVersion{
 			ArticleID:     article.ID,
@@ -95,19 +103,14 @@ func (s *articleService) UpdateArticle(article *domain.Article) error {
 		article.Versions = append(article.Versions, version)
 	}
 
-	// 3. Handle Status Change via Update?
-	// Usually strict status changes go through ChangeStatus, but for general update we might allow it if it's draft.
-	// For now, let's assume this Update is for Content primarily. To be safe, we keep status from existing if not intended to change here.
 	if article.Status == "" {
 		article.Status = existing.Status
 	}
 
-	// 4. Update
 	if err := s.repo.Update(article); err != nil {
 		return err
 	}
 
-	// 5. Broadcast Event
 	s.broadcastEvent("article_updated", article)
 
 	return nil

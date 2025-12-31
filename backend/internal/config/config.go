@@ -18,9 +18,18 @@ type Config struct {
 }
 
 func LoadConfig() *Config {
+	// Try to load from current directory, then parent, then two levels up
+	// to account for running from root or cmd/server
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Println("No .env file found, using environment variables")
+		err = godotenv.Load("../.env")
+	}
+	if err != nil {
+		err = godotenv.Load("../../.env")
+	}
+
+	if err != nil {
+		log.Println("No .env file found, using environment variables and fallbacks")
 	}
 
 	return &Config{
