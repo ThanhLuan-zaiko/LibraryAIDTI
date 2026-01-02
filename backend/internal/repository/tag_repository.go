@@ -27,14 +27,18 @@ func (r *tagRepository) GetAll() ([]domain.Tag, error) {
 
 func (r *tagRepository) GetByID(id uuid.UUID) (*domain.Tag, error) {
 	var tag domain.Tag
-	err := r.db.First(&tag, "id = ?", id).Error
-	return &tag, err
+	if err := r.db.First(&tag, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &tag, nil
 }
 
 func (r *tagRepository) GetBySlug(slug string) (*domain.Tag, error) {
 	var tag domain.Tag
-	err := r.db.First(&tag, "slug = ?", slug).Error
-	return &tag, err
+	if err := r.db.First(&tag, "slug = ?", slug).Error; err != nil {
+		return nil, err
+	}
+	return &tag, nil
 }
 
 func (r *tagRepository) GetList(page, limit int, search, sortBy, order string) (*domain.PaginatedResult[domain.Tag], error) {

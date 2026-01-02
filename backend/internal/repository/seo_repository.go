@@ -23,8 +23,10 @@ func (r *seoRepository) CreateRedirect(redirect *domain.SeoRedirect) error {
 
 func (r *seoRepository) GetRedirectByFromSlug(slug string) (*domain.SeoRedirect, error) {
 	var redirect domain.SeoRedirect
-	err := r.db.First(&redirect, "from_slug = ?", slug).Error
-	return &redirect, err
+	if err := r.db.First(&redirect, "from_slug = ?", slug).Error; err != nil {
+		return nil, err
+	}
+	return &redirect, nil
 }
 
 func (r *seoRepository) DeleteRedirect(id uuid.UUID) error {
@@ -39,8 +41,10 @@ func (r *seoRepository) CreateArticleRedirect(redirect *domain.ArticleSeoRedirec
 
 func (r *seoRepository) GetArticleRedirectByFromSlug(slug string) (*domain.ArticleSeoRedirect, error) {
 	var redirect domain.ArticleSeoRedirect
-	err := r.db.First(&redirect, "from_slug = ?", slug).Error
-	return &redirect, err
+	if err := r.db.First(&redirect, "from_slug = ?", slug).Error; err != nil {
+		return nil, err
+	}
+	return &redirect, nil
 }
 
 func (r *seoRepository) GetRedirectsByArticleID(articleID uuid.UUID) ([]domain.ArticleSeoRedirect, error) {

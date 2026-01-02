@@ -166,6 +166,14 @@ func (s *articleService) ChangeStatus(id uuid.UUID, newStatus domain.ArticleStat
 	return nil
 }
 
+func (s *articleService) CreateMediaFile(media *domain.MediaFile) error {
+	return s.mediaRepo.CreateMediaFile(media)
+}
+
+func (s *articleService) DeleteMediaByUrl(url string) error {
+	return s.mediaRepo.DeleteMediaByUrl(url)
+}
+
 func (s *articleService) broadcastEvent(eventType string, payload interface{}) {
 	s.hub.Broadcast <- []byte(fmt.Sprintf(`{"type":"%s","payload":%v}`, eventType, utils.ToJSON(payload)))
 }

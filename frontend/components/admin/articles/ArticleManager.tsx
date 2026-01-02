@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { HiPlus, HiPencil, HiTrash, HiFilter, HiSearch } from 'react-icons/hi';
+import { HiPlus, HiPencil, HiTrash, HiFilter, HiSearch, HiOutlineDocumentText } from 'react-icons/hi';
 import { useArticleLogic } from '@/hooks/admin/useArticleLogic';
 
 import { articleService, ArticleInput } from '@/services/article.service';
 import Pagination from '@/components/admin/Pagination';
 import ConfirmModal from '@/components/admin/ConfirmModal';
+import { getImageUrl } from '@/utils/image';
 
 import { useRouter } from 'next/navigation';
 
@@ -88,6 +89,7 @@ const ArticleManager = () => {
                     <table className="w-full text-left border-collapse">
                         <thead className="bg-gray-50 border-b border-gray-200">
                             <tr>
+                                <th className="px-6 py-4 text-sm font-bold text-gray-700 uppercase tracking-wider w-16">Ảnh</th>
                                 <th className="px-6 py-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Tiêu đề</th>
                                 <th className="px-6 py-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Tác giả</th>
                                 <th className="px-6 py-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Trạng thái</th>
@@ -108,6 +110,25 @@ const ArticleManager = () => {
                             ) : (
                                 articles.map((article) => (
                                     <tr key={article.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden border border-gray-100">
+                                                {(() => {
+                                                    const primaryImg = article.images?.find(img => img.is_primary) || article.images?.[0];
+                                                    const thumbUrl = primaryImg?.image_url;
+                                                    return thumbUrl ? (
+                                                        <img
+                                                            src={getImageUrl(thumbUrl)}
+                                                            alt=""
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                                            <HiOutlineDocumentText className="w-6 h-6" />
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        </td>
                                         <td className="px-6 py-4">
                                             <div className="text-sm font-bold text-gray-900 line-clamp-1">{article.title}</div>
                                             <div className="text-xs text-gray-500">{article.slug}</div>

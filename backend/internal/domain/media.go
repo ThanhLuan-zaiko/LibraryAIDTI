@@ -42,6 +42,7 @@ type ArticleMediaVersion struct {
 type MediaRepository interface {
 	// Basic Media File operations (if needed, otherwise can stay in generic file repo)
 	GetMediaByID(id uuid.UUID) (*MediaFile, error)
+	CreateMediaFile(media *MediaFile) error
 
 	// Article Media operations
 	AddMediaToArticle(articleMedia *ArticleMedia) error
@@ -53,4 +54,6 @@ type MediaRepository interface {
 	// Versioning
 	CreateMediaVersion(version *ArticleMediaVersion) error
 	GetVersionsByArticleID(articleID uuid.UUID) ([]ArticleMediaVersion, error)
+
+	DeleteMediaByUrl(url string) error
 }

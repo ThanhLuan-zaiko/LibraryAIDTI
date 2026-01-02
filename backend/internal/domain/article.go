@@ -47,6 +47,7 @@ type ArticleImage struct {
 	ID        uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	ArticleID uuid.UUID `gorm:"type:uuid;not null" json:"article_id"`
 	ImageURL  string    `gorm:"not null" json:"image_url"`
+	IsPrimary bool      `gorm:"default:false" json:"is_primary"`
 	CreatedAt time.Time `gorm:"default:now()" json:"created_at"`
 }
 
@@ -101,4 +102,6 @@ type ArticleService interface {
 	UpdateArticle(article *Article) error
 	DeleteArticle(id uuid.UUID) error
 	ChangeStatus(id uuid.UUID, newStatus ArticleStatus, changedBy uuid.UUID, note string) error
+	CreateMediaFile(media *MediaFile) error
+	DeleteMediaByUrl(url string) error
 }

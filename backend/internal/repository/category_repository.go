@@ -28,14 +28,18 @@ func (r *categoryRepository) GetAll() ([]domain.Category, error) {
 
 func (r *categoryRepository) GetByID(id uuid.UUID) (*domain.Category, error) {
 	var category domain.Category
-	err := r.db.Preload("Parent").Preload("Children").First(&category, "id = ?", id).Error
-	return &category, err
+	if err := r.db.Preload("Parent").Preload("Children").First(&category, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &category, nil
 }
 
 func (r *categoryRepository) GetBySlug(slug string) (*domain.Category, error) {
 	var category domain.Category
-	err := r.db.Preload("Parent").Preload("Children").First(&category, "slug = ?", slug).Error
-	return &category, err
+	if err := r.db.Preload("Parent").Preload("Children").First(&category, "slug = ?", slug).Error; err != nil {
+		return nil, err
+	}
+	return &category, nil
 }
 
 func (r *categoryRepository) GetStats() ([]domain.CategoryStats, error) {

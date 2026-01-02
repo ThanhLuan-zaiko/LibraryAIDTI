@@ -88,16 +88,30 @@ func (h *ArticleHandler) CreateArticle(c *gin.Context) {
 	for _, img := range req.Images {
 		if img.ImageData != "" {
 			// Process base64 image
-			url, err := h.imageProcessor.ProcessBase64Image(img.ImageData, article.ID.String())
+			imgInfo, err := h.imageProcessor.ProcessBase64Image(img.ImageData, article.ID.String())
 			if err != nil {
-				// Log error but continue with other images
-				continue
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process image: " + err.Error()})
+				return
 			}
 
 			articleImages = append(articleImages, domain.ArticleImage{
 				ArticleID: article.ID,
-				ImageURL:  url,
+				ImageURL:  imgInfo.URL,
+				IsPrimary: img.IsPrimary,
 			})
+
+			// Save to media_files metadata
+			mediaFile := &domain.MediaFile{
+				FileName:   imgInfo.FileName,
+				FileURL:    imgInfo.URL,
+				FileType:   imgInfo.Type,
+				FileSize:   imgInfo.Size,
+				UploadedBy: &article.AuthorID,
+			}
+			if err := h.service.CreateMediaFile(mediaFile); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image metadata: " + err.Error()})
+				return
+			}
 		}
 	}
 
@@ -192,6 +206,12 @@ func (h *ArticleHandler) UpdateArticle(c *gin.Context) {
 		return
 	}
 
+	// Capture old image URLs for cleanup
+	oldImageUrls := make(map[string]bool)
+	for _, img := range article.Images {
+		oldImageUrls[img.ImageURL] = true
+	}
+
 	// Update fields
 	article.Title = req.Title
 	article.Content = req.Content
@@ -212,19 +232,36 @@ func (h *ArticleHandler) UpdateArticle(c *gin.Context) {
 	for _, imgReq := range req.Images {
 		if imgReq.ImageData != "" {
 			// New base64 image
-			url, err := h.imageProcessor.ProcessBase64Image(imgReq.ImageData, article.ID.String())
+			imgInfo, err := h.imageProcessor.ProcessBase64Image(imgReq.ImageData, article.ID.String())
 			if err != nil {
-				continue
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process image: " + err.Error()})
+				return
 			}
+
 			finalImages = append(finalImages, domain.ArticleImage{
 				ArticleID: article.ID,
-				ImageURL:  url,
+				ImageURL:  imgInfo.URL,
+				IsPrimary: imgReq.IsPrimary,
 			})
+
+			// Save to media_files metadata
+			mediaFile := &domain.MediaFile{
+				FileName:   imgInfo.FileName,
+				FileURL:    imgInfo.URL,
+				FileType:   imgInfo.Type,
+				FileSize:   imgInfo.Size,
+				UploadedBy: &article.AuthorID,
+			}
+			if err := h.service.CreateMediaFile(mediaFile); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image metadata: " + err.Error()})
+				return
+			}
 		} else if imgReq.ImageUrl != "" {
 			// Existing image URL
 			finalImages = append(finalImages, domain.ArticleImage{
 				ArticleID: article.ID,
 				ImageURL:  imgReq.ImageUrl,
+				IsPrimary: imgReq.IsPrimary,
 			})
 		}
 	}
@@ -237,9 +274,30 @@ func (h *ArticleHandler) UpdateArticle(c *gin.Context) {
 		article.SEOMetadata = req.SeoMetadata
 	}
 
+	// Identify removed images
+	newImageUrls := make(map[string]bool)
+	for _, img := range finalImages {
+		newImageUrls[img.ImageURL] = true
+	}
+
+	var removedUrls []string
+	for url := range oldImageUrls {
+		if !newImageUrls[url] {
+			removedUrls = append(removedUrls, url)
+		}
+	}
+
 	if err := h.service.UpdateArticle(article); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Cleanup removed images after successful update
+	for _, url := range removedUrls {
+		// Delete physical file
+		_ = h.imageProcessor.DeleteImage(url)
+		// Delete metadata from DB
+		_ = h.service.DeleteMediaByUrl(url)
 	}
 
 	c.JSON(http.StatusOK, article)

@@ -1,11 +1,12 @@
 import React, { useRef } from 'react';
 import { HiCloudUpload, HiTrash, HiStar } from 'react-icons/hi';
 import { FaSpinner } from 'react-icons/fa';
+import { getImageUrl } from '@/utils/image';
 
 interface ImageItem {
     image_url?: string;        // For existing images from server
     image_data?: string;       // For new images (base64)
-    isPrimary?: boolean;
+    is_primary?: boolean;
     file?: File;              // Keep file object reference
 }
 
@@ -42,7 +43,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImagesChange }) =
                 const base64 = await convertFileToBase64(file);
                 const newImage: ImageItem = {
                     image_data: base64,
-                    isPrimary: currentImages.length === 0 && i === 0,
+                    is_primary: currentImages.length === 0 && i === 0,
                     file: file,
                 };
                 currentImages.push(newImage);
@@ -74,7 +75,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImagesChange }) =
                 const base64 = await convertFileToBase64(file);
                 const newImage: ImageItem = {
                     image_data: base64,
-                    isPrimary: currentImages.length === 0 && i === 0,
+                    is_primary: currentImages.length === 0 && i === 0,
                     file: file,
                 };
                 currentImages.push(newImage);
@@ -100,8 +101,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImagesChange }) =
     const handleRemoveImage = (index: number) => {
         const newImages = images.filter((_, i) => i !== index);
         // If removed image was primary, make first image primary
-        if (images[index].isPrimary && newImages.length > 0) {
-            newImages[0].isPrimary = true;
+        if (images[index].is_primary && newImages.length > 0) {
+            newImages[0].is_primary = true;
         }
         onImagesChange(newImages);
     };
@@ -109,7 +110,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImagesChange }) =
     const handleSetPrimary = (index: number) => {
         const newImages = images.map((img, i) => ({
             ...img,
-            isPrimary: i === index,
+            is_primary: i === index,
         }));
         onImagesChange(newImages);
     };
@@ -123,8 +124,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImagesChange }) =
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 className={`relative aspect-video rounded-lg overflow-hidden border-2 border-dashed transition-all cursor-pointer group ${isDragging
-                        ? 'border-blue-500 bg-blue-100 scale-105'
-                        : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50'
+                    ? 'border-blue-500 bg-blue-100 scale-105'
+                    : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50'
                     }`}
             >
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
@@ -153,7 +154,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImagesChange }) =
             {/* Image Grid */}
             {images.length > 0 && (
                 <div className="grid grid-cols-2 gap-3">
-                    {images.map((image, index) => {
+                    {[...images].sort((a, b) => (a.is_primary === b.is_primary ? 0 : a.is_primary ? -1 : 1)).map((image, index) => {
                         const imageUrl = image.image_data || image.image_url || '';
                         return (
                             <div
@@ -161,13 +162,13 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImagesChange }) =
                                 className="relative aspect-video rounded-lg overflow-hidden border-2 border-gray-200 group hover:border-blue-400 transition-all"
                             >
                                 <img
-                                    src={imageUrl}
+                                    src={getImageUrl(imageUrl)}
                                     alt={`Image ${index + 1}`}
                                     className="w-full h-full object-cover"
                                 />
 
                                 {/* Primary Badge */}
-                                {image.isPrimary && (
+                                {image.is_primary && (
                                     <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center space-x-1 shadow-md">
                                         <HiStar className="w-3 h-3" />
                                         <span>Chính</span>
@@ -183,7 +184,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImagesChange }) =
 
                                 {/* Hover Actions */}
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
-                                    {!image.isPrimary && (
+                                    {!image.is_primary && (
                                         <button
                                             onClick={() => handleSetPrimary(index)}
                                             className="bg-yellow-500 text-white p-2 rounded-full shadow-md hover:bg-yellow-600 transition-colors"

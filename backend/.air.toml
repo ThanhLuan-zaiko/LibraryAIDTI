@@ -11,7 +11,7 @@ testdata_dir = "testdata"
 
   delay = 1000
   include_ext = ["go", "html", "tmpl", "tpl"]
-  exclude_dir = ["tmp", "vendor", "assets", "testdata"]
+  exclude_dir = ["tmp", "vendor", "assets", "testdata", "uploads", "cmd/server/uploads", "**/uploads"]
   exclude_regex = ["_test.go"]
 
   log = "build-errors.log"

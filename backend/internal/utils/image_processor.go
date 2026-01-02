@@ -13,9 +13,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/HugoSmits86/nativewebp"
 	"github.com/google/uuid"
-	"github.com/nickalie/go-webpbin"
 )
+
+// ImageInfo contains metadata about a processed image
+type ImageInfo struct {
+	FileName string
+	URL      string
+	Path     string
+	Size     int64
+	Type     string
+}
 
 // ImageProcessor handles image conversion and optimization
 type ImageProcessor struct {
@@ -33,58 +42,34 @@ func NewImageProcessor() *ImageProcessor {
 	}
 }
 
-// ProcessBase64Image converts a base64 image to WebP and returns the file path
-func (p *ImageProcessor) ProcessBase64Image(base64Data, articleID string) (string, error) {
+// ProcessBase64Image converts a base64 image to WebP and returns the image info
+func (p *ImageProcessor) ProcessBase64Image(base64Data, articleID string) (*ImageInfo, error) {
 	// Decode base64
 	data, err := p.decodeBase64(base64Data)
 	if err != nil {
-		return "", fmt.Errorf("failed to decode base64: %w", err)
+		return nil, fmt.Errorf("failed to decode base64: %w", err)
 	}
 
-	// Decode image
-	img, _, err := image.Decode(bytes.NewReader(data))
-	if err != nil {
-		return "", fmt.Errorf("failed to decode image: %w", err)
-	}
-
-	// Resize if needed
-	img = p.resizeIfNeeded(img)
-
-	// Generate filename and path
-	filename := p.generateFilename()
-	relativePath := filepath.Join("uploads", "articles", articleID, filename)
-	fullPath := filepath.Join(".", relativePath)
-
-	// Create directory if not exists
-	dir := filepath.Dir(fullPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create directory: %w", err)
-	}
-
-	// Convert to WebP and save
-	if err := webpbin.NewCWebP().
-		Quality(uint(p.Quality)).
-		InputImage(img).
-		OutputFile(fullPath).
-		Run(); err != nil {
-		return "", fmt.Errorf("failed to encode to WebP: %w", err)
-	}
-
-	return "/" + filepath.ToSlash(relativePath), nil
+	return p.processImageBytes(data, articleID)
 }
 
 // ProcessImageFile processes an uploaded file and converts it to WebP
-func (p *ImageProcessor) ProcessImageFile(file io.Reader, articleID string) (string, error) {
+func (p *ImageProcessor) ProcessImageFile(file io.Reader, articleID string) (*ImageInfo, error) {
 	// Read file data
 	data, err := io.ReadAll(file)
 	if err != nil {
-		return "", fmt.Errorf("failed to read file: %w", err)
+		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
+	return p.processImageBytes(data, articleID)
+}
+
+// processImageBytes handles the common logic for processing image bytes
+func (p *ImageProcessor) processImageBytes(data []byte, articleID string) (*ImageInfo, error) {
 	// Decode image
 	img, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
-		return "", fmt.Errorf("failed to decode image: %w", err)
+		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
 
 	// Resize if needed
@@ -98,19 +83,34 @@ func (p *ImageProcessor) ProcessImageFile(file io.Reader, articleID string) (str
 	// Create directory if not exists
 	dir := filepath.Dir(fullPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create directory: %w", err)
+		return nil, fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	// Convert to WebP and save
-	if err := webpbin.NewCWebP().
-		Quality(uint(p.Quality)).
-		InputImage(img).
-		OutputFile(fullPath).
-		Run(); err != nil {
-		return "", fmt.Errorf("failed to encode to WebP: %w", err)
+	// Create file
+	f, err := os.Create(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file: %w", err)
+	}
+	defer f.Close()
+
+	// Convert to WebP and save using native library
+	if err := nativewebp.Encode(f, img, nil); err != nil {
+		return nil, fmt.Errorf("failed to encode to WebP: %w", err)
 	}
 
-	return "/" + filepath.ToSlash(relativePath), nil
+	// Get file size
+	fileInfo, err := f.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	return &ImageInfo{
+		FileName: filename,
+		URL:      "/" + filepath.ToSlash(relativePath),
+		Path:     fullPath,
+		Size:     fileInfo.Size(),
+		Type:     "image/webp",
+	}, nil
 }
 
 // decodeBase64 decodes base64 string and strips data URL prefix if present
@@ -175,4 +175,15 @@ func (p *ImageProcessor) generateFilename() string {
 func (p *ImageProcessor) CleanupArticleImages(articleID string) error {
 	dirPath := filepath.Join("uploads", "articles", articleID)
 	return os.RemoveAll(dirPath)
+}
+
+// DeleteImage deletes a physical image file given its relative URL
+func (p *ImageProcessor) DeleteImage(relativeURL string) error {
+	if relativeURL == "" {
+		return nil
+	}
+	// relativeURL is like "/uploads/articles/<id>/<filename>"
+	// We need to convert it to local path "./uploads/articles/<id>/<filename>"
+	path := "." + filepath.FromSlash(relativeURL)
+	return os.Remove(path)
 }

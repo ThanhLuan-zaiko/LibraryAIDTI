@@ -89,6 +89,7 @@ CREATE TABLE article_images (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     article_id UUID REFERENCES articles(id) ON DELETE CASCADE,
     image_url TEXT NOT NULL,
+    is_primary BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -482,6 +483,9 @@ SELECT * FROM article_versions;
 SELECT * FROM article_status_logs;
 SELECT * FROM article_tags;
 SELECT * FROM article_relations;
+
+SELECT * FROM media_files;
+SELECT * FROM media_file_versions;
 
 SELECT * FROM article_media;
 SELECT * FROM article_media_versions;

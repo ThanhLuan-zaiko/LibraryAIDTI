@@ -9,7 +9,7 @@ import {
 } from "@/services/dashboard.service";
 import CategoryHierarchyStatsComponent from "./CategoryHierarchyStats";
 import CategoryTreeChart from "./CategoryTreeChart";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Legend } from "recharts";
 import { FiFileText, FiEye, FiMessageSquare, FiActivity } from "react-icons/fi";
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
@@ -116,19 +116,27 @@ export default function CategoryAnalytics() {
                                 <Pie
                                     data={(data.top_categories || []) as any}
                                     cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    outerRadius={100}
+                                    cy="45%"
+                                    labelLine={true}
+                                    outerRadius={80}
+                                    innerRadius={60}
+                                    paddingAngle={5}
                                     fill="#8884d8"
                                     dataKey="article_count"
                                     nameKey="name"
-                                    label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                    label={({ name, percent }: any) => percent > 0.05 ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
                                 >
                                     {(data.top_categories || []).map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
                                 <Tooltip />
+                                <Legend
+                                    verticalAlign="bottom"
+                                    height={36}
+                                    iconType="circle"
+                                    formatter={(value: string) => <span className="text-xs text-gray-600">{value}</span>}
+                                />
                             </PieChart>
                         </ResponsiveContainer>
                     </div>

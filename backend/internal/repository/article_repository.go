@@ -38,7 +38,8 @@ func (r *articleRepository) GetAll(offset, limit int, filter map[string]interfac
 	query := r.db.Model(&domain.Article{}).
 		Preload("Category").
 		Preload("Author").
-		Preload("Tags")
+		Preload("Tags").
+		Preload("Images")
 
 	if status, ok := filter["status"]; ok && status != "" {
 		query = query.Where("status = ?", status)
@@ -95,21 +96,18 @@ func (r *articleRepository) GetBySlug(slug string) (*domain.Article, error) {
 
 func (r *articleRepository) Update(article *domain.Article) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		// Update basic fields
-		if err := tx.Save(article).Error; err != nil {
+		// Update only basic fields of the article to avoid association saving logic here
+		if err := tx.Model(article).Select("Title", "Slug", "Summary", "Content", "CategoryID", "Status", "IsFeatured", "AllowComment", "PublishedAt", "UpdatedAt", "ViewCount").
+			Updates(article).Error; err != nil {
 			return err
 		}
 
-		// Update Tags association
+		// Update Tags association explicitly using Replace
 		if err := tx.Model(article).Association("Tags").Replace(article.Tags); err != nil {
 			return err
 		}
 
-		// Update Images - delete old ones and insert new ones or smart update
-		// For simplicity, we might assuming Images are handled separately or replaced
-		// But usually we need to handle specific logic.
-		// Here we assume article.Images contains the Desired State.
-		// However, GORM's Replace might be safer for Images too if they are wholly owned.
+		// Update Images association explicitly using Replace
 		if err := tx.Model(article).Association("Images").Replace(article.Images); err != nil {
 			return err
 		}
@@ -129,7 +127,7 @@ func (r *articleRepository) Update(article *domain.Article) error {
 			} else {
 				// Update existing
 				article.SEOMetadata.ID = existingSEO.ID
-				if err := tx.Save(article.SEOMetadata).Error; err != nil {
+				if err := tx.Model(&existingSEO).Updates(article.SEOMetadata).Error; err != nil {
 					return err
 				}
 			}

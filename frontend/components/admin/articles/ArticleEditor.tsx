@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { HiExclamationCircle, HiX } from 'react-icons/hi';
+import { HiExclamationCircle, HiX, HiCheck } from 'react-icons/hi';
 import { articleService, Article, ArticleInput } from '@/services/article.service';
 import { categoryService, Category } from '@/services/category.service';
 import { tagService, Tag } from '@/services/tag.service';
@@ -18,6 +18,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ articleId, initialData })
     const [categories, setCategories] = useState<Category[]>([]);
     const [availableTags, setAvailableTags] = useState<Tag[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
     const [showSeoSection, setShowSeoSection] = useState(false);
 
     const [formData, setFormData] = useState<ArticleInput>({
@@ -103,14 +104,21 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ articleId, initialData })
         if (e) e.preventDefault();
         setLoading(true);
         setError(null);
+        setSuccess(null);
 
         try {
             if (articleId) {
                 await articleService.update(articleId, formData);
+                setSuccess("Bài viết đã được cập nhật thành công!");
             } else {
                 await articleService.create(formData);
+                setSuccess("Bài viết đã được tạo thành công!");
             }
-            router.push('/admin/articles');
+
+            // Delay redirect to allow user to see the success message
+            setTimeout(() => {
+                router.push('/admin/articles');
+            }, 2000);
         } catch (error: any) {
             console.error("Failed to save article", error);
             setError(error.response?.data?.error || "Có lỗi xảy ra khi lưu bài viết.");
@@ -164,6 +172,31 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ articleId, initialData })
                 onSubmit={handleSubmit}
                 onCancel={() => router.push('/admin/articles')}
             />
+
+            {/* Success Notification */}
+            {success && (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+                    <div className="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-lg flex items-start animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="flex-shrink-0">
+                            <div className="bg-emerald-100 p-1 rounded-full">
+                                <HiCheck className="h-4 w-4 text-emerald-600" />
+                            </div>
+                        </div>
+                        <div className="ml-3">
+                            <h3 className="text-sm font-bold text-emerald-800">Thành công</h3>
+                            <div className="mt-1 text-sm text-emerald-700 font-medium">{success}</div>
+                        </div>
+                        <div className="ml-auto pl-3">
+                            <button
+                                onClick={() => setSuccess(null)}
+                                className="-mx-1.5 -my-1.5 bg-emerald-50 p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-100 focus:outline-none transition-colors"
+                            >
+                                <HiX className="h-5 w-5" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Error Notification */}
             {error && (

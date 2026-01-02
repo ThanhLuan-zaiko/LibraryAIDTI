@@ -17,8 +17,14 @@ func NewMediaRepository(db *gorm.DB) domain.MediaRepository {
 
 func (r *mediaRepository) GetMediaByID(id uuid.UUID) (*domain.MediaFile, error) {
 	var media domain.MediaFile
-	err := r.db.First(&media, "id = ?", id).Error
-	return &media, err
+	if err := r.db.First(&media, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &media, nil
+}
+
+func (r *mediaRepository) CreateMediaFile(media *domain.MediaFile) error {
+	return r.db.Create(media).Error
 }
 
 func (r *mediaRepository) AddMediaToArticle(articleMedia *domain.ArticleMedia) error {
@@ -59,4 +65,8 @@ func (r *mediaRepository) GetVersionsByArticleID(articleID uuid.UUID) ([]domain.
 	var versions []domain.ArticleMediaVersion
 	err := r.db.Where("article_id = ?", articleID).Find(&versions).Error
 	return versions, err
+}
+
+func (r *mediaRepository) DeleteMediaByUrl(url string) error {
+	return r.db.Delete(&domain.MediaFile{}, "file_url = ?", url).Error
 }
