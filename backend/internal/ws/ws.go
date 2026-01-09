@@ -166,6 +166,18 @@ func (h *Hub) SendToUser(userID uuid.UUID, msgType string, payload interface{}) 
 	}
 }
 
+func (h *Hub) BroadcastEvent(msgType string, payload interface{}) {
+	data, err := json.Marshal(map[string]interface{}{
+		"type":    msgType,
+		"payload": payload,
+	})
+	if err != nil {
+		log.Printf("Error marshaling broadcast message: %v", err)
+		return
+	}
+	h.Broadcast <- data
+}
+
 func (c *Client) readPump() {
 	defer func() {
 		c.Hub.Unregister <- c

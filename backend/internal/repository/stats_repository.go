@@ -25,7 +25,6 @@ func (r *statsRepository) GetAdminStats() (*domain.AdminStats, error) {
 	}
 
 	// Count readers (users with SUBSCRIBER role)
-	// Joining users with roles via user_roles
 	err = r.db.Table("users").
 		Joins("JOIN user_roles ON user_roles.user_id = users.id").
 		Joins("JOIN roles ON roles.id = user_roles.role_id").
@@ -47,9 +46,46 @@ func (r *statsRepository) GetAdminStats() (*domain.AdminStats, error) {
 		return nil, err
 	}
 
-	// Mock trends for now or implement logic if needed
-	stats.ArticleTrend = 12.0
-	stats.ReaderTrend = 5.4
+	// Count draft posts
+	err = r.db.Model(&domain.Article{}).Where("status = ?", "DRAFT").Count(&stats.DraftPosts).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate Article Trend (Last 7 days vs Previous 7 days)
+	var currArticles, prevArticles int64
+	r.db.Model(&domain.Article{}).Where("created_at >= NOW() - INTERVAL '7 days'").Count(&currArticles)
+	r.db.Model(&domain.Article{}).Where("created_at >= NOW() - INTERVAL '14 days' AND created_at < NOW() - INTERVAL '7 days'").Count(&prevArticles)
+
+	if prevArticles > 0 {
+		stats.ArticleTrend = float64(currArticles-prevArticles) / float64(prevArticles) * 100.0
+	} else if currArticles > 0 {
+		stats.ArticleTrend = 100.0
+	}
+
+	// Calculate Reader Trend (Last 7 days vs Previous 7 days)
+	// Calculate Reader Trend (Last 7 days vs Previous 7 days)
+	var currReaders, prevReaders int64
+
+	r.db.Table("users").
+		Joins("JOIN user_roles ON user_roles.user_id = users.id").
+		Joins("JOIN roles ON roles.id = user_roles.role_id").
+		Where("roles.name = ?", "SUBSCRIBER").
+		Where("users.created_at >= NOW() - INTERVAL '7 days'").
+		Count(&currReaders)
+
+	r.db.Table("users").
+		Joins("JOIN user_roles ON user_roles.user_id = users.id").
+		Joins("JOIN roles ON roles.id = user_roles.role_id").
+		Where("roles.name = ?", "SUBSCRIBER").
+		Where("users.created_at >= NOW() - INTERVAL '14 days' AND users.created_at < NOW() - INTERVAL '7 days'").
+		Count(&prevReaders)
+
+	if prevReaders > 0 {
+		stats.ReaderTrend = float64(currReaders-prevReaders) / float64(prevReaders) * 100.0
+	} else if currReaders > 0 {
+		stats.ReaderTrend = 100.0
+	}
 
 	return &stats, nil
 }
@@ -57,7 +93,7 @@ func (r *statsRepository) GetAdminStats() (*domain.AdminStats, error) {
 func (r *statsRepository) GetRecentActivities(limit int) ([]domain.AdminActivity, error) {
 	var activities []domain.AdminActivity
 
-	// Fetch recent articles as "published" or "updated" activities
+	// Fetch recent articles
 	var articles []domain.Article
 	err := r.db.Preload("Author").Order("updated_at desc").Limit(limit).Find(&articles).Error
 	if err != nil {
@@ -101,19 +137,34 @@ func (r *statsRepository) GetRecentActivities(limit int) ([]domain.AdminActivity
 		}
 	}
 
-	// Sort activities by timestamp desc and limit
-	// (A simple sort for now)
 	return activities, nil
 }
+
 func (r *statsRepository) GetAnalytics(days int) ([]domain.AnalyticsData, error) {
 	analytics := []domain.AnalyticsData{}
 
+	// Improved query to handle dates with 0 values and actual views from article_views
 	err := r.db.Raw(`
-		SELECT TO_CHAR(created_at, 'DD/MM') as date, COUNT(*) as articles, 0 as views
-		FROM articles
-		WHERE created_at >= CURRENT_DATE - INTERVAL '1 day' * ?
-		GROUP BY date
-		ORDER BY MIN(created_at)
+		WITH date_series AS (
+			SELECT CAST(CURRENT_DATE - (i || ' day')::interval AS DATE) as d
+			FROM generate_series(0, ?) i
+		)
+		SELECT 
+			TO_CHAR(ds.d, 'DD/MM') as date,
+			COALESCE(a.count, 0) as articles,
+			COALESCE(v.count, 0) as views
+		FROM date_series ds
+		LEFT JOIN (
+			SELECT CAST(created_at AS DATE) as d, COUNT(*) as count
+			FROM articles
+			GROUP BY d
+		) a ON ds.d = a.d
+		LEFT JOIN (
+			SELECT CAST(created_at AS DATE) as d, COUNT(*) as count
+			FROM article_views
+			GROUP BY d
+		) v ON ds.d = v.d
+		ORDER BY ds.d ASC
 	`, days-1).Scan(&analytics).Error
 
 	return analytics, err

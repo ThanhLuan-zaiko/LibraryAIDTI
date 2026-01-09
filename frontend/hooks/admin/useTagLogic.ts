@@ -20,9 +20,21 @@ export const useTagLogic = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
-    // Initial Load
+    // Initial Load & Real-time Listener
     useEffect(() => {
         fetchData();
+
+        const handleAdminUpdate = (event: any) => {
+            const { module } = event.detail || {};
+            if (module === 'tags' || module === 'admin' || !module) {
+                refreshData();
+            }
+        };
+
+        window.addEventListener('admin-data-updated', handleAdminUpdate);
+        return () => {
+            window.removeEventListener('admin-data-updated', handleAdminUpdate);
+        };
     }, []);
 
     const fetchData = async (

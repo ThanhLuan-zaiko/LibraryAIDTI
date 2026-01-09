@@ -8,6 +8,7 @@ import (
 	"backend/internal/db"
 	"backend/internal/domain"
 	"backend/internal/handler"
+	"backend/internal/middleware"
 	"backend/internal/repository"
 	"backend/internal/router"
 	"backend/internal/service"
@@ -30,6 +31,9 @@ func main() {
 	// Initialize WebSocket Hub
 	wsHub := ws.NewHub()
 	go wsHub.Run()
+
+	// Initialize Response Cache
+	respCache := middleware.NewResponseCache()
 
 	// 3. Auto Migration
 	err := db.DB.AutoMigrate(
@@ -66,12 +70,12 @@ func main() {
 	categoryRepo := repository.NewCategoryRepository(db.DB)
 	articleService := service.NewArticleService(articleRepo, mediaRepo, auditRepo, seoService, wsHub)
 	categoryService := service.NewCategoryService(categoryRepo)
-	articleHandler := handler.NewArticleHandler(articleService)
-	categoryHandler := handler.NewCategoryHandler(categoryService)
+	articleHandler := handler.NewArticleHandler(articleService, respCache, wsHub)
+	categoryHandler := handler.NewCategoryHandler(categoryService, respCache, wsHub)
 
 	tagRepo := repository.NewTagRepository(db.DB)
 	tagService := service.NewTagService(tagRepo)
-	tagHandler := handler.NewTagHandler(tagService)
+	tagHandler := handler.NewTagHandler(tagService, respCache, wsHub)
 
 	authRepo := repository.NewAuthRepository(db.DB)
 	authService := service.NewAuthService(authRepo, auditRepo)
@@ -97,9 +101,9 @@ func main() {
 
 	userRepo := repository.NewUserRepository(db.DB)
 	userService := service.NewUserService(userRepo, wsHub)
-	userHandler := handler.NewUserHandler(userService)
+	userHandler := handler.NewUserHandler(userService, respCache, wsHub)
 
-	appRouter := router.NewRouter(articleHandler, categoryHandler, tagHandler, authHandler, statsHandler, dashboardHandler, userHandler, uploadHandler, wsHub)
+	appRouter := router.NewRouter(articleHandler, categoryHandler, tagHandler, authHandler, statsHandler, dashboardHandler, userHandler, uploadHandler, wsHub, respCache)
 	appRouter.Setup(r)
 
 	// 6. Start Server

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { authService } from '@/services/auth.service';
 import AccountLockedModal from '@/components/auth/AccountLockedModal';
 import PermissionUpdateModal from '@/components/auth/PermissionUpdateModal';
@@ -18,6 +18,16 @@ interface User {
     full_name: string;
     roles: Role[];
 }
+
+const ROLE_LEVELS: Record<string, number> = {
+    'ADMIN': 3,
+    'EDITOR': 2,
+    'AUTHOR': 1,
+    'SUBSCRIBER': 0
+};
+
+const getMaxLevel = (roles: Role[]) =>
+    Math.max(0, ...roles.map(r => r?.name ? (ROLE_LEVELS[r.name.toUpperCase()] || 0) : 0));
 
 interface AuthContextType {
     user: User | null;
@@ -56,7 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         pathnameRef.current = pathname;
     }, [pathname]);
 
-    const refreshUser = async () => {
+    const refreshUser = useCallback(async () => {
         try {
             const data = await authService.getMe();
             const newUser = data.user;
@@ -67,21 +77,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 const oldRoles = currentUser.roles || [];
                 const newRoles = newUser.roles || [];
 
-                const privilegedRoles = ['ADMIN', 'EDITOR', 'AUTHOR'];
+                const oldLevel = getMaxLevel(oldRoles);
+                const newLevel = getMaxLevel(newRoles);
 
-                const hasPrivilege = (roles: Role[]) =>
-                    roles.some((r: Role) => r && r.name && privilegedRoles.includes(r.name));
+                const isDemoted = newLevel < oldLevel;
+                const isPromoted = newLevel > oldLevel;
 
-                const hadPrivileged = hasPrivilege(oldRoles);
-                const hasPrivileged = hasPrivilege(newRoles);
-
-                const lostPrivileged = hadPrivileged && !hasPrivileged;
-                const gainedPrivileged = !hadPrivileged && hasPrivileged;
-
-                if (lostPrivileged && currentPath?.startsWith('/admin')) {
+                if (isDemoted && currentPath?.startsWith('/admin')) {
                     setPermissionModal({ isOpen: true, type: 'demoted' });
                     return;
-                } else if (gainedPrivileged) {
+                } else if (isPromoted) {
                     if (!currentPath?.startsWith('/admin')) {
                         setPermissionModal({ isOpen: true, type: 'promoted' });
                     }
@@ -91,13 +96,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setUser(newUser);
         } catch (error: any) {
             if (error.response?.status !== 401) {
-                console.error("Failed to load user info:", error);
+                console.error("[Auth] Failed to load user info:", error);
             }
             setUser(null);
         } finally {
             setLoading(false);
         }
-    };
+    }, [setUser]);
 
     useEffect(() => {
         refreshUser();
@@ -128,6 +133,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                         } else if (data.type === "online_list") {
                             const ids = (data.payload.user_ids || []) as string[];
                             setOnlineUsers(new Set(ids));
+                        } else if (data.type === "admin_data_updated") {
+                            // Emit global event for components to listen
+                            window.dispatchEvent(new CustomEvent('admin-data-updated', { detail: data.payload }));
                         } else if (data.type === "user_status") {
                             const { user_id, status } = data.payload;
                             setOnlineUsers(prev => {
@@ -159,7 +167,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
             setSocket(null);
         };
-    }, [user?.id, isLocked]);
+    }, [user?.id, isLocked, refreshUser]);
 
     useEffect(() => {
         const handleLockEvent = () => setIsLocked(true);

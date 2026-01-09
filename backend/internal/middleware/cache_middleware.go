@@ -31,6 +31,28 @@ func NewResponseCache() *ResponseCache {
 	}
 }
 
+func (c *ResponseCache) Clear(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.items, key)
+}
+
+func (c *ResponseCache) ClearByPrefix(prefix string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for k := range c.items {
+		if len(k) >= len(prefix) && k[:len(prefix)] == prefix {
+			delete(c.items, k)
+		}
+	}
+}
+
+func (c *ResponseCache) ClearAll() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.items = make(map[string]cacheItem)
+}
+
 // responseWriter captures the response
 type responseWriter struct {
 	gin.ResponseWriter
@@ -121,6 +143,7 @@ func CacheMiddleware(cache *ResponseCache, ttl time.Duration) gin.HandlerFunc {
 			// Serve from cache (this handles the requests that were waiting in singleflight)
 			// But check if we already served the response in this specific request (the one that actually called c.Next)
 			if !c.Writer.Written() {
+				fmt.Printf("[CACHE] Singleflight hit: serving waiting request for %s\n", key)
 				etag := fmt.Sprintf("%x", md5.Sum(item.content))
 				c.Header("ETag", etag)
 				if c.GetHeader("If-None-Match") == etag {

@@ -38,28 +38,20 @@ export function useArticleLogic() {
         fetchData();
     }, [fetchData]);
 
-    // WebSocket Integration
-    const { socket } = useAuth();
+    // WebSocket & Global Event Integration
     useEffect(() => {
-        if (!socket) return;
-
-        const handleMessage = (event: MessageEvent) => {
-            try {
-                const data = JSON.parse(event.data);
-                if (['article_created', 'article_updated', 'article_deleted', 'article_status_changed'].includes(data.type)) {
-                    fetchData();
-                }
-            } catch (e) {
-                console.error("WS parse error in ArticleLogic", e);
+        const handleAdminUpdate = (event: any) => {
+            const { module } = event.detail || {};
+            if (module === 'articles' || module === 'admin' || !module) {
+                fetchData();
             }
         };
 
-        socket.addEventListener('message', handleMessage);
-
+        window.addEventListener('admin-data-updated', handleAdminUpdate);
         return () => {
-            socket.removeEventListener('message', handleMessage);
+            window.removeEventListener('admin-data-updated', handleAdminUpdate);
         };
-    }, [socket, fetchData]);
+    }, [fetchData]);
 
     const handleSearch = (query: string) => {
         setSearchQuery(query);

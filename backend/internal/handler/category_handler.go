@@ -2,6 +2,8 @@ package handler
 
 import (
 	"backend/internal/domain"
+	"backend/internal/middleware"
+	"backend/internal/ws"
 	"net/http"
 	"strconv"
 
@@ -11,10 +13,16 @@ import (
 
 type CategoryHandler struct {
 	service domain.CategoryService
+	cache   *middleware.ResponseCache
+	hub     *ws.Hub
 }
 
-func NewCategoryHandler(service domain.CategoryService) *CategoryHandler {
-	return &CategoryHandler{service: service}
+func NewCategoryHandler(service domain.CategoryService, cache *middleware.ResponseCache, hub *ws.Hub) *CategoryHandler {
+	return &CategoryHandler{
+		service: service,
+		cache:   cache,
+		hub:     hub,
+	}
 }
 
 func (h *CategoryHandler) CreateCategory(c *gin.Context) {
@@ -28,6 +36,11 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Invalidate cache and broadcast update
+	h.cache.ClearByPrefix("/api/v1/categories")
+	h.cache.ClearByPrefix("/api/v1/admin")
+	h.hub.BroadcastEvent("admin_data_updated", gin.H{"module": "categories", "action": "create"})
 
 	c.JSON(http.StatusCreated, category)
 }
@@ -111,6 +124,12 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
+	// Invalidate cache and broadcast update
+	h.cache.ClearByPrefix("/api/v1/categories")
+	h.cache.ClearByPrefix("/api/v1/articles") // Articles often link to categories
+	h.cache.ClearByPrefix("/api/v1/admin")
+	h.hub.BroadcastEvent("admin_data_updated", gin.H{"module": "categories", "action": "update"})
+
 	c.JSON(http.StatusOK, category)
 }
 
@@ -126,6 +145,12 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Invalidate cache and broadcast update
+	h.cache.ClearByPrefix("/api/v1/categories")
+	h.cache.ClearByPrefix("/api/v1/articles")
+	h.cache.ClearByPrefix("/api/v1/admin")
+	h.hub.BroadcastEvent("admin_data_updated", gin.H{"module": "categories", "action": "delete"})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Category deleted successfully"})
 }

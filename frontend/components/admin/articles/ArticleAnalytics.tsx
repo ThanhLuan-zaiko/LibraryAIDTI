@@ -58,9 +58,9 @@ const ArticleAnalytics = () => {
     const { stats, analytics } = data;
 
     const statusData = [
-        { name: 'Đã xuất bản', value: stats.total_articles - stats.pending_posts, color: '#10b981' },
+        { name: 'Đã xuất bản', value: stats.total_articles - stats.pending_posts - stats.draft_posts, color: '#10b981' },
         { name: 'Chờ duyệt', value: stats.pending_posts, color: '#f59e0b' },
-        { name: 'Bản nháp', value: Math.max(0, stats.total_articles * 0.1), color: '#64748b' },
+        { name: 'Bản nháp', value: stats.draft_posts, color: '#64748b' },
     ];
 
     return (

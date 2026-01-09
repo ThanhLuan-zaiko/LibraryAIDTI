@@ -36,6 +36,7 @@ func NewRouter(
 	userHandler *handler.UserHandler,
 	uploadHandler *handler.UploadHandler,
 	wsHub *ws.Hub,
+	cache *middleware.ResponseCache,
 ) *Router {
 	return &Router{
 		articleHandler:   articleHandler,
@@ -48,7 +49,7 @@ func NewRouter(
 		uploadHandler:    uploadHandler,
 		userRepo:         userHandler.GetService().GetRepo(),
 		wsHub:            wsHub,
-		cache:            middleware.NewResponseCache(),
+		cache:            cache,
 	}
 }
 
@@ -113,7 +114,7 @@ func (r *Router) Setup(engine *gin.Engine) {
 		{
 			categories.POST("", r.categoryHandler.CreateCategory)
 			categories.GET("", middleware.CacheMiddleware(r.cache, time.Second*5), r.categoryHandler.GetCategories)
-			categories.GET("/stats", middleware.HTTPCacheMiddleware(300), middleware.CacheMiddleware(r.cache, time.Minute*5), r.categoryHandler.GetStats)
+			categories.GET("/stats", middleware.CacheMiddleware(r.cache, time.Minute*5), r.categoryHandler.GetStats)
 			categories.GET("/:id", r.categoryHandler.GetCategory)
 			categories.PUT("/:id", r.categoryHandler.UpdateCategory)
 			categories.DELETE("/:id", r.categoryHandler.DeleteCategory)
@@ -124,7 +125,7 @@ func (r *Router) Setup(engine *gin.Engine) {
 		{
 			tags.POST("", r.tagHandler.CreateTag)
 			tags.GET("", middleware.CacheMiddleware(r.cache, time.Second*5), r.tagHandler.GetTags)
-			tags.GET("/stats", middleware.HTTPCacheMiddleware(300), middleware.CacheMiddleware(r.cache, time.Minute*5), r.tagHandler.GetStats)
+			tags.GET("/stats", middleware.CacheMiddleware(r.cache, time.Minute*5), r.tagHandler.GetStats)
 			tags.GET("/:id", r.tagHandler.GetTag)
 			tags.PUT("/:id", r.tagHandler.UpdateTag)
 			tags.DELETE("/:id", r.tagHandler.DeleteTag)

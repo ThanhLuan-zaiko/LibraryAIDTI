@@ -2,7 +2,9 @@ package handler
 
 import (
 	"backend/internal/domain"
+	"backend/internal/middleware"
 	"backend/internal/utils"
+	"backend/internal/ws"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -14,12 +16,16 @@ import (
 type ArticleHandler struct {
 	service        domain.ArticleService
 	imageProcessor *utils.ImageProcessor
+	cache          *middleware.ResponseCache
+	hub            *ws.Hub
 }
 
-func NewArticleHandler(service domain.ArticleService) *ArticleHandler {
+func NewArticleHandler(service domain.ArticleService, cache *middleware.ResponseCache, hub *ws.Hub) *ArticleHandler {
 	return &ArticleHandler{
 		service:        service,
 		imageProcessor: utils.NewImageProcessor(),
+		cache:          cache,
+		hub:            hub,
 	}
 }
 
@@ -206,6 +212,11 @@ func (h *ArticleHandler) CreateArticle(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update article with relations: " + err.Error()})
 		return
 	}
+
+	// Invalidate cache and broadcast update
+	h.cache.ClearByPrefix("/api/v1/articles")
+	h.cache.ClearByPrefix("/api/v1/admin")
+	h.hub.BroadcastEvent("admin_data_updated", gin.H{"module": "articles", "action": "create"})
 
 	c.JSON(http.StatusCreated, article)
 }
@@ -451,6 +462,11 @@ func (h *ArticleHandler) UpdateArticle(c *gin.Context) {
 		return
 	}
 
+	// Invalidate cache and broadcast update
+	h.cache.ClearByPrefix("/api/v1/articles")
+	h.cache.ClearByPrefix("/api/v1/admin")
+	h.hub.BroadcastEvent("admin_data_updated", gin.H{"module": "articles", "action": "update"})
+
 	c.JSON(http.StatusOK, article)
 }
 
@@ -466,6 +482,11 @@ func (h *ArticleHandler) DeleteArticle(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Invalidate cache and broadcast update
+	h.cache.ClearByPrefix("/api/v1/articles")
+	h.cache.ClearByPrefix("/api/v1/admin")
+	h.hub.BroadcastEvent("admin_data_updated", gin.H{"module": "articles", "action": "delete"})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Article deleted successfully"})
 }
@@ -504,6 +525,11 @@ func (h *ArticleHandler) ChangeStatus(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Invalidate cache and broadcast update
+	h.cache.ClearByPrefix("/api/v1/articles")
+	h.cache.ClearByPrefix("/api/v1/admin")
+	h.hub.BroadcastEvent("admin_data_updated", gin.H{"module": "articles", "action": "change_status"})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Status updated successfully"})
 }

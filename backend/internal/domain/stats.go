@@ -7,6 +7,7 @@ type AdminStats struct {
 	TotalReaders    int64   `json:"total_readers"`
 	TotalCategories int64   `json:"total_categories"`
 	PendingPosts    int64   `json:"pending_posts"`
+	DraftPosts      int64   `json:"draft_posts"`
 	ArticleTrend    float64 `json:"article_trend"`
 	ReaderTrend     float64 `json:"reader_trend"`
 }

@@ -2,6 +2,8 @@ package handler
 
 import (
 	"backend/internal/domain"
+	"backend/internal/middleware"
+	"backend/internal/ws"
 	"net/http"
 	"strconv"
 
@@ -11,14 +13,20 @@ import (
 
 type UserHandler struct {
 	service domain.UserService
+	cache   *middleware.ResponseCache
+	hub     *ws.Hub
 }
 
 func (h *UserHandler) GetService() domain.UserService {
 	return h.service
 }
 
-func NewUserHandler(service domain.UserService) *UserHandler {
-	return &UserHandler{service: service}
+func NewUserHandler(service domain.UserService, cache *middleware.ResponseCache, hub *ws.Hub) *UserHandler {
+	return &UserHandler{
+		service: service,
+		cache:   cache,
+		hub:     hub,
+	}
 }
 
 // GetUsers retrieves paginated list of users
@@ -102,6 +110,11 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
+	// Invalidate cache and broadcast update
+	h.cache.ClearByPrefix("/api/v1/users")
+	h.cache.ClearByPrefix("/api/v1/admin")
+	h.hub.BroadcastEvent("admin_data_updated", gin.H{"module": "users", "action": "update"})
+
 	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật người dùng thành công"})
 }
 
@@ -119,6 +132,11 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Invalidate cache and broadcast update
+	h.cache.ClearByPrefix("/api/v1/users")
+	h.cache.ClearByPrefix("/api/v1/admin")
+	h.hub.BroadcastEvent("admin_data_updated", gin.H{"module": "users", "action": "delete"})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Xóa người dùng thành công"})
 }
@@ -166,6 +184,11 @@ func (h *UserHandler) AssignRoles(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Invalidate cache and broadcast update
+	h.cache.ClearByPrefix("/api/v1/users")
+	h.cache.ClearByPrefix("/api/v1/admin")
+	h.hub.BroadcastEvent("admin_data_updated", gin.H{"module": "users", "action": "assign_roles"})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Gán vai trò thành công"})
 }

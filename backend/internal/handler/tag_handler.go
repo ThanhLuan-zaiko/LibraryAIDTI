@@ -2,6 +2,8 @@ package handler
 
 import (
 	"backend/internal/domain"
+	"backend/internal/middleware"
+	"backend/internal/ws"
 	"net/http"
 	"strconv"
 
@@ -11,10 +13,16 @@ import (
 
 type TagHandler struct {
 	service domain.TagService
+	cache   *middleware.ResponseCache
+	hub     *ws.Hub
 }
 
-func NewTagHandler(service domain.TagService) *TagHandler {
-	return &TagHandler{service: service}
+func NewTagHandler(service domain.TagService, cache *middleware.ResponseCache, hub *ws.Hub) *TagHandler {
+	return &TagHandler{
+		service: service,
+		cache:   cache,
+		hub:     hub,
+	}
 }
 
 func (h *TagHandler) CreateTag(c *gin.Context) {
@@ -28,6 +36,11 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Invalidate cache and broadcast update
+	h.cache.ClearByPrefix("/api/v1/tags")
+	h.cache.ClearByPrefix("/api/v1/admin")
+	h.hub.BroadcastEvent("admin_data_updated", gin.H{"module": "tags", "action": "create"})
 
 	c.JSON(http.StatusCreated, tag)
 }
@@ -110,6 +123,12 @@ func (h *TagHandler) UpdateTag(c *gin.Context) {
 		return
 	}
 
+	// Invalidate cache and broadcast update
+	h.cache.ClearByPrefix("/api/v1/tags")
+	h.cache.ClearByPrefix("/api/v1/articles") // Articles might be filtered by tags
+	h.cache.ClearByPrefix("/api/v1/admin")
+	h.hub.BroadcastEvent("admin_data_updated", gin.H{"module": "tags", "action": "update"})
+
 	c.JSON(http.StatusOK, tag)
 }
 
@@ -125,6 +144,12 @@ func (h *TagHandler) DeleteTag(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Invalidate cache and broadcast update
+	h.cache.ClearByPrefix("/api/v1/tags")
+	h.cache.ClearByPrefix("/api/v1/articles")
+	h.cache.ClearByPrefix("/api/v1/admin")
+	h.hub.BroadcastEvent("admin_data_updated", gin.H{"module": "tags", "action": "delete"})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Tag deleted successfully"})
 }

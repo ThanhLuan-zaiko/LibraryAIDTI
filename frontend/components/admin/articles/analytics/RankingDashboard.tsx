@@ -72,8 +72,19 @@ export default function RankingDashboard({ statusData, analyticsData, stats }: R
                         <div className="col-span-2 pt-4 border-t border-white/10">
                             <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-2">Lời khuyên hệ thống</p>
                             <p className="text-sm text-gray-200">
-                                Lượt xem của bạn tăng <span className="text-green-400 font-bold">+{stats.reader_trend}%</span> so với tuần trước.
-                                Hãy thử đẩy mạnh các bài viết thu hút nhiều bình luận để tăng tương tác.
+                                {stats.reader_trend > 0 ? (
+                                    <>Lượt truy cập tăng <span className="text-green-400 font-bold">+{stats.reader_trend.toFixed(1)}%</span> so với tuần trước. </>
+                                ) : stats.reader_trend < 0 ? (
+                                    <>Lượt truy cập giảm <span className="text-red-400 font-bold">{stats.reader_trend.toFixed(1)}%</span> so với tuần trước. </>
+                                ) : (
+                                    <>Lượt truy cập ổn định so với tuần trước. </>
+                                )}
+                                {stats.reader_trend < 0
+                                    ? "Hãy thử cập nhật thêm nội dung mới hoặc tối ưu SEO cho các bài viết để thu hút người đọc."
+                                    : (analyticsData?.total_comments || 0) / (analyticsData?.total_views || 1) < 0.02
+                                        ? "Tỷ lệ tương tác còn thấp, hãy đặt thêm câu hỏi ở cuối bài viết để khuyến khích bình luận."
+                                        : "Hãy tiếp tục duy trì phong độ và đẩy mạnh các chủ đề đang được quan tâm nhiều nhất."
+                                }
                             </p>
                         </div>
                     </div>

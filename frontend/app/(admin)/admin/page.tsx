@@ -46,6 +46,18 @@ export default function AdminDashboard() {
         };
 
         fetchStats();
+
+        // Listen for real-time updates from other admins
+        const handleAdminUpdate = (event: any) => {
+            const { module } = event.detail || {};
+            // Refresh if any module changes as this is the "Super Dashboard"
+            fetchStats();
+        };
+
+        window.addEventListener('admin-data-updated', handleAdminUpdate);
+        return () => {
+            window.removeEventListener('admin-data-updated', handleAdminUpdate);
+        };
     }, []);
 
     if (loading) {

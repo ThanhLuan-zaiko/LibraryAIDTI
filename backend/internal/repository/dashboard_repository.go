@@ -136,7 +136,7 @@ func (r *dashboardRepository) GetAdvancedAnalytics() (*domain.AdvancedAnalyticsD
 		Total int64
 	}
 	if err := r.db.Raw(`
-		SELECT AVG(version_count) as avg, SUM(version_count) as total
+		SELECT COALESCE(AVG(version_count), 0) as avg, COALESCE(SUM(version_count), 0) as total
 		FROM (
 			SELECT COUNT(*) as version_count
 			FROM article_versions

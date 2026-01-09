@@ -22,10 +22,22 @@ export const useUserLogic = () => {
 
     const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
-    // Initial Load
+    // Initial Load & Real-time Listener
     useEffect(() => {
         fetchData();
         fetchRoles();
+
+        const handleAdminUpdate = (event: any) => {
+            const { module } = event.detail || {};
+            if (module === 'users' || module === 'admin' || !module) {
+                refreshData();
+            }
+        };
+
+        window.addEventListener('admin-data-updated', handleAdminUpdate);
+        return () => {
+            window.removeEventListener('admin-data-updated', handleAdminUpdate);
+        };
     }, []);
 
     const fetchData = async (

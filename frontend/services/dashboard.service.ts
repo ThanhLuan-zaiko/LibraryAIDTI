@@ -25,6 +25,7 @@ export interface AdminStats {
     total_readers: number;
     total_categories: number;
     pending_posts: number;
+    draft_posts: number;
     article_trend: number;
     reader_trend: number;
 }
