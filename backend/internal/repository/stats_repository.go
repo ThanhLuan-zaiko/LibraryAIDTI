@@ -64,7 +64,6 @@ func (r *statsRepository) GetAdminStats() (*domain.AdminStats, error) {
 	}
 
 	// Calculate Reader Trend (Last 7 days vs Previous 7 days)
-	// Calculate Reader Trend (Last 7 days vs Previous 7 days)
 	var currReaders, prevReaders int64
 
 	r.db.Table("users").
@@ -160,7 +159,7 @@ func (r *statsRepository) GetAnalytics(days int) ([]domain.AnalyticsData, error)
 			GROUP BY d
 		) a ON ds.d = a.d
 		LEFT JOIN (
-			SELECT CAST(created_at AS DATE) as d, COUNT(*) as count
+			SELECT CAST(viewed_at AS DATE) as d, COUNT(*) as count
 			FROM article_views
 			GROUP BY d
 		) v ON ds.d = v.d

@@ -13,7 +13,9 @@ import {
     HiOutlineCog,
     HiOutlineArrowCircleLeft,
     HiMenuAlt2,
-    HiX
+    HiX,
+    HiOutlineTag,
+    HiOutlineGlobe
 } from "react-icons/hi";
 
 export default function AdminLayout({
@@ -61,7 +63,9 @@ export default function AdminLayout({
         { name: "Dashboard", href: "/admin", icon: HiOutlineViewGrid },
         { name: "Bài viết", href: "/admin/articles", icon: HiOutlineDocumentText },
         { name: "Danh mục", href: "/admin/categories", icon: HiOutlineCollection },
+        { name: "Thẻ", href: "/admin/tags", icon: HiOutlineTag },
         { name: "Người dùng", href: "/admin/users", icon: HiOutlineUsers },
+        { name: "Global SEO", href: "/admin/seo", icon: HiOutlineGlobe },
     ];
 
     return (

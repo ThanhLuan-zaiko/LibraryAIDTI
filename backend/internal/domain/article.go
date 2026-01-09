@@ -34,14 +34,15 @@ type Article struct {
 	UpdatedAt    time.Time     `gorm:"default:now()" json:"updated_at"`
 
 	// Relations
-	Images      []ArticleImage     `gorm:"foreignKey:ArticleID" json:"images"`
-	MediaList   []ArticleMedia     `gorm:"foreignKey:ArticleID" json:"media_list"`
-	Versions    []ArticleVersion   `gorm:"foreignKey:ArticleID" json:"versions"`
-	StatusLogs  []ArticleStatusLog `gorm:"foreignKey:ArticleID" json:"status_logs"`
-	Tags        []Tag              `gorm:"many2many:article_tags;joinForeignKey:article_id;joinReferences:tag_id" json:"tags"`
-	Related     []*Article         `gorm:"many2many:article_relations;foreignKey:id;joinForeignKey:article_id;references:id;joinReferences:related_article_id" json:"related_articles"`
-	SEOMetadata *SeoMetadata       `gorm:"foreignKey:ArticleID" json:"seo_metadata"`
-	ViewCount   int                `gorm:"default:0" json:"view_count"` // Keep this for stats
+	Images      []ArticleImage       `gorm:"foreignKey:ArticleID" json:"images"`
+	MediaList   []ArticleMedia       `gorm:"foreignKey:ArticleID" json:"media_list"`
+	Versions    []ArticleVersion     `gorm:"foreignKey:ArticleID" json:"versions"`
+	StatusLogs  []ArticleStatusLog   `gorm:"foreignKey:ArticleID" json:"status_logs"`
+	Tags        []Tag                `gorm:"many2many:article_tags;joinForeignKey:article_id;joinReferences:tag_id" json:"tags"`
+	Related     []*Article           `gorm:"many2many:article_relations;foreignKey:id;joinForeignKey:article_id;references:id;joinReferences:related_article_id" json:"related_articles"`
+	SEOMetadata *SeoMetadata         `gorm:"foreignKey:ArticleID" json:"seo_metadata"`
+	Redirects   []ArticleSeoRedirect `gorm:"foreignKey:ArticleID" json:"redirects"`
+	ViewCount   int                  `gorm:"default:0" json:"view_count"` // Keep this for stats
 }
 
 // ArticleImage maps to article_images table
@@ -111,4 +112,7 @@ type ArticleService interface {
 	ChangeStatus(id uuid.UUID, newStatus ArticleStatus, changedBy uuid.UUID, note string) error
 	CreateMediaFile(media *MediaFile) error
 	DeleteMediaByUrl(url string) error
+	CreateArticleRedirect(articleID uuid.UUID, fromSlug string) error
+	DeleteArticleRedirect(redirectID uuid.UUID) error
+	GetRedirectDestination(slug string) (string, error)
 }

@@ -1,33 +1,40 @@
 import React from 'react';
-import { HiChevronDown, HiChevronUp, HiPlus, HiX, HiLightningBolt, HiPhotograph } from 'react-icons/hi';
+import { HiChevronDown, HiChevronUp, HiPlus, HiX, HiLightningBolt, HiPhotograph, HiTrash, HiExternalLink } from 'react-icons/hi';
 import { Category } from '@/services/category.service';
 import { Tag } from '@/services/tag.service';
-import { ArticleInput } from '@/services/article.service';
+import { ArticleInput, ArticleSeoRedirect, articleService } from '@/services/article.service';
 import ImageGallery from './ImageGallery';
 import TagSelector from './TagSelector';
 import CategorySelector from './CategorySelector';
 import RelatedArticleSelector from './RelatedArticleSelector';
+import SeoPreview from './SeoPreview';
 
 interface ArticleEditorSidebarProps {
     formData: ArticleInput;
     articleId?: string;
+    redirects?: ArticleSeoRedirect[];
     showSeoSection: boolean;
     onFormDataChange: (data: Partial<ArticleInput>) => void;
     onToggleFeatured: () => void;
     onToggleSeoSection: () => void;
+    onRedirectsChange?: (redirects: ArticleSeoRedirect[]) => void;
     onNotify: (type: 'success' | 'error', message: string) => void;
 }
 
 const ArticleEditorSidebar: React.FC<ArticleEditorSidebarProps> = ({
     formData,
     articleId,
+    redirects = [],
     showSeoSection,
     onFormDataChange,
     onToggleFeatured,
     onToggleSeoSection,
+    onRedirectsChange,
     onNotify,
 }) => {
     const [confirmOverwrite, setConfirmOverwrite] = React.useState(false);
+    const [newRedirectSlug, setNewRedirectSlug] = React.useState('');
+    const [addingRedirect, setAddingRedirect] = React.useState(false);
     const confirmTimeoutRef = React.useRef<NodeJS.Timeout>(null);
 
     React.useEffect(() => {
@@ -49,6 +56,53 @@ const ArticleEditorSidebar: React.FC<ArticleEditorSidebarProps> = ({
                     og_image: primaryImage.image_url
                 }
             });
+        }
+    };
+
+    const handleAddRedirect = async () => {
+        if (!articleId) {
+            onNotify('error', 'Vui lòng lưu bài viết trước khi thêm redirect.');
+            return;
+        }
+        if (!newRedirectSlug.trim()) {
+            return;
+        }
+
+        try {
+            setAddingRedirect(true);
+            await articleService.addRedirect(articleId, newRedirectSlug);
+            onNotify('success', 'Đã thêm redirect.');
+            setNewRedirectSlug('');
+            // Optimistic update
+            if (onRedirectsChange) {
+                const newRedirect: ArticleSeoRedirect = {
+                    id: 'temp-' + Date.now(),
+                    article_id: articleId,
+                    from_slug: newRedirectSlug,
+                    to_slug: formData.slug || '',
+                    created_at: new Date().toISOString()
+                };
+                onRedirectsChange([...redirects, newRedirect]);
+            }
+        } catch (error: any) {
+            onNotify('error', error.response?.data?.error || 'Không thể thêm redirect.');
+        } finally {
+            setAddingRedirect(false);
+        }
+    };
+
+    const handleDeleteRedirect = async (redirectId: string) => {
+        if (!articleId) return;
+        if (!confirm('Bạn có chắc muốn xóa redirect này?')) return;
+
+        try {
+            await articleService.deleteRedirect(articleId, redirectId);
+            onNotify('success', 'Đã xóa redirect.');
+            if (onRedirectsChange) {
+                onRedirectsChange(redirects.filter(r => r.id !== redirectId));
+            }
+        } catch (error: any) {
+            onNotify('error', 'Không thể xóa redirect.');
         }
     };
 
@@ -102,6 +156,7 @@ const ArticleEditorSidebar: React.FC<ArticleEditorSidebarProps> = ({
 
         // 3. Update State (Overwrite is assumed true if we passed the check above)
         onFormDataChange({
+            slug: formData.slug || slug,
             seo_metadata: {
                 ...formData.seo_metadata,
                 meta_title: title,
@@ -145,7 +200,7 @@ const ArticleEditorSidebar: React.FC<ArticleEditorSidebarProps> = ({
                 />
             </div>
 
-            {/* SEO Metadata */}
+            {/* SEO Metadata & Preview */}
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
                 <div
                     className="flex items-center justify-between cursor-pointer"
@@ -178,8 +233,21 @@ const ArticleEditorSidebar: React.FC<ArticleEditorSidebarProps> = ({
                     </div>
                 </div>
                 {showSeoSection && (
-                    <div className="mt-4 space-y-3">
-                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 mb-3">
+                    <div className="mt-4 space-y-4">
+                        {/* Preview */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Google Search Preview</label>
+                            <SeoPreview
+                                title={formData.seo_metadata?.meta_title || formData.title}
+                                description={formData.seo_metadata?.meta_description || formData.summary || ''}
+                                slug={formData.slug || ''}
+                                siteName="Library AI DTI"
+                            />
+                        </div>
+
+                        <hr className="border-gray-100" />
+
+                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
                             <p className="text-xs text-blue-700">
                                 <span className="font-semibold">Mẹo:</span> Bạn có thể để trống các trường bên dưới. Hệ thống sẽ tự động tạo thông tin chuẩn SEO từ nội dung bài viết khi bạn lưu.
                             </p>
@@ -262,6 +330,67 @@ const ArticleEditorSidebar: React.FC<ArticleEditorSidebarProps> = ({
                     </div>
                 )}
             </div>
+
+            {/* Redirects Section */}
+            {articleId && (
+                <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <h3 className="font-bold text-gray-900 mb-4 text-base">Quản lý Alias (Link phụ)</h3>
+                    <p className="text-xs text-gray-500 mb-3">Các đường dẫn này sẽ tự động chuyển hướng về bài viết hiện tại.</p>
+
+                    <div className="space-y-2 mb-4">
+                        {redirects && redirects.length > 0 ? redirects.map((r) => (
+                            <div key={r.id} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded border border-gray-200">
+                                <span className="flex items-center text-gray-600 truncate mr-2" title={`/${r.from_slug}`}>
+                                    <HiExternalLink className="w-4 h-4 mr-1 text-gray-400" />
+                                    /{r.from_slug}
+                                </span>
+                                <button
+                                    onClick={() => handleDeleteRedirect(r.id)}
+                                    className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
+                                    title="Xóa alias"
+                                >
+                                    <HiTrash className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )) : (
+                            <p className="text-xs text-gray-400 italic">Chưa có alias nào.</p>
+                        )}
+                    </div>
+
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={newRedirectSlug}
+                            onChange={(e) => {
+                                let val = e.target.value;
+                                if (val.includes('http') || val.includes('://')) {
+                                    try {
+                                        const url = new URL(val);
+                                        val = url.pathname.replace(/^\/|\/$/g, '');
+                                    } catch (err) { }
+                                }
+                                const slugified = val.toLowerCase()
+                                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                                    .replace(/đ/g, "d")
+                                    .replace(/[^a-z0-9\s-]/g, "")
+                                    .replace(/\s+/g, "-");
+                                setNewRedirectSlug(slugified);
+                            }}
+                            placeholder="Nhập link phụ (alias) hoặc dán link đầy đủ..."
+                            className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddRedirect()}
+                        />
+                        <button
+                            type="button"
+                            onClick={handleAddRedirect}
+                            disabled={addingRedirect}
+                            className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
+                        >
+                            {addingRedirect ? '...' : <HiPlus className="w-5 h-5" />}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Settings */}
             <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 space-y-5">

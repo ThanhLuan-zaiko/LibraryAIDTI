@@ -89,11 +89,10 @@ CREATE TABLE article_images (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     article_id UUID REFERENCES articles(id) ON DELETE CASCADE,
     image_url TEXT NOT NULL,
+    description TEXT,
     is_primary BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT NOW()
 );
-
-ALTER TABLE article_images ADD COLUMN description TEXT;
 
 CREATE TABLE article_versions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -210,18 +209,6 @@ CREATE TABLE article_media_versions (
     usage_type VARCHAR(50) -- thumbnail, gallery, inline
 );
 
-CREATE TABLE seo_metadata (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    article_id UUID UNIQUE REFERENCES articles(id) ON DELETE CASCADE,
-
-    meta_title VARCHAR(255),
-    meta_description TEXT,
-    meta_keywords TEXT,
-
-    og_image TEXT,
-    canonical_url TEXT
-);
-
 CREATE TABLE article_seo_metadata (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     article_id UUID UNIQUE REFERENCES articles(id) ON DELETE CASCADE,
@@ -243,7 +230,7 @@ CREATE TABLE seo_redirects (
 
 CREATE TABLE article_seo_redirects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    article_id UUID UNIQUE REFERENCES articles(id) ON DELETE CASCADE,
+    article_id UUID REFERENCES articles(id) ON DELETE CASCADE,
     from_slug TEXT UNIQUE NOT NULL,
     to_slug TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT NOW()
@@ -491,7 +478,6 @@ SELECT * FROM media_file_versions;
 
 SELECT * FROM article_media;
 SELECT * FROM article_media_versions;
-SELECT * FROM seo_metadata;
 SELECT * FROM article_seo_metadata;
 SELECT * FROM seo_redirects;
 SELECT * FROM article_seo_redirects;

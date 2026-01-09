@@ -101,7 +101,7 @@ func (r *dashboardRepository) GetAdvancedAnalytics() (*domain.AdvancedAnalyticsD
 	}
 
 	// 1. SEO Stats
-	if err := r.db.Table("seo_metadata").
+	if err := r.db.Table("article_seo_metadata").
 		Select("COUNT(*) filter (where meta_description is null or meta_description = '') as missing_meta_description, COUNT(*) filter (where og_image is null or og_image = '') as missing_og_image, COUNT(*) as total_seo_records").
 		Scan(&data.SEOStats).Error; err != nil {
 		return nil, err
@@ -174,7 +174,7 @@ func (r *dashboardRepository) GetAdvancedAnalytics() (*domain.AdvancedAnalyticsD
 		Count(&data.ContentHealth.GoodContentLength)
 
 	// Missing canonical URLs
-	r.db.Table("seo_metadata").
+	r.db.Table("article_seo_metadata").
 		Where("canonical_url IS NULL OR canonical_url = ''").
 		Count(&data.ContentHealth.MissingCanonical)
 

@@ -335,3 +335,19 @@ func (s *articleService) DeleteMediaByUrl(url string) error {
 func (s *articleService) broadcastEvent(eventType string, payload interface{}) {
 	s.hub.Broadcast <- []byte(fmt.Sprintf(`{"type":"%s","payload":%v}`, eventType, utils.ToJSON(payload)))
 }
+
+func (s *articleService) CreateArticleRedirect(articleID uuid.UUID, fromSlug string) error {
+	article, err := s.repo.GetByID(articleID)
+	if err != nil {
+		return err
+	}
+	return s.seoService.CreateArticleRedirect(articleID, fromSlug, article.Slug)
+}
+
+func (s *articleService) DeleteArticleRedirect(redirectID uuid.UUID) error {
+	return s.seoService.DeleteArticleRedirect(redirectID)
+}
+
+func (s *articleService) GetRedirectDestination(slug string) (string, error) {
+	return s.seoService.GetDestination(slug)
+}

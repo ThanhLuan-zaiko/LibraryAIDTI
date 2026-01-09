@@ -21,6 +21,7 @@ type Router struct {
 	parentHandler    *handler.UserHandler // Alias or keeping userHandler is fine, just adding uploadHandler
 	userHandler      *handler.UserHandler
 	uploadHandler    *handler.UploadHandler
+	seoHandler       *handler.SeoHandler
 	userRepo         domain.UserRepository
 	wsHub            *ws.Hub
 	cache            *middleware.ResponseCache
@@ -35,6 +36,7 @@ func NewRouter(
 	dashboardHandler *handler.DashboardHandler,
 	userHandler *handler.UserHandler,
 	uploadHandler *handler.UploadHandler,
+	seoHandler *handler.SeoHandler,
 	wsHub *ws.Hub,
 	cache *middleware.ResponseCache,
 ) *Router {
@@ -47,6 +49,7 @@ func NewRouter(
 		dashboardHandler: dashboardHandler,
 		userHandler:      userHandler,
 		uploadHandler:    uploadHandler,
+		seoHandler:       seoHandler,
 		userRepo:         userHandler.GetService().GetRepo(),
 		wsHub:            wsHub,
 		cache:            cache,
@@ -171,9 +174,23 @@ func (r *Router) Setup(engine *gin.Engine) {
 				articles.PUT("/:id", r.articleHandler.UpdateArticle)
 				articles.DELETE("/:id", r.articleHandler.DeleteArticle)
 				articles.PUT("/:id/status", r.articleHandler.ChangeStatus)
+				articles.POST("/:id/redirects", r.articleHandler.AddRedirect)
+				articles.DELETE("/:id/redirects/:redirectId", r.articleHandler.DeleteRedirect)
 			}
 
 			protected.GET("/roles", r.userHandler.GetRoles)
+
+			// SEO Management
+			seo := protected.Group("/seo")
+			{
+				seo.GET("/redirects", r.seoHandler.GetRedirects)
+				seo.POST("/redirects", r.seoHandler.CreateRedirect)
+				seo.PUT("/redirects/:id", r.seoHandler.UpdateRedirect)
+				seo.DELETE("/redirects/:id", r.seoHandler.DeleteRedirect)
+
+				seo.GET("/article-redirects", r.seoHandler.GetArticleRedirects)
+				seo.GET("/trends", r.seoHandler.GetTrends)
+			}
 		}
 	}
 }

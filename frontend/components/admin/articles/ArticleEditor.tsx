@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { HiExclamationCircle, HiX, HiCheck } from 'react-icons/hi';
-import { articleService, Article, ArticleInput } from '@/services/article.service';
+import { articleService, Article, ArticleInput, ArticleSeoRedirect } from '@/services/article.service';
 import { categoryService, Category } from '@/services/category.service';
 import { tagService, Tag } from '@/services/tag.service';
 import ArticleEditorHeader from './ArticleEditorHeader';
@@ -39,13 +39,11 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ articleId, initialData })
         related_article_ids: [],
     });
 
-    // Initial load logic if needed (currently managed by selectors)
-    useEffect(() => {
-        // Categories and Tags are now fetched by their respective selectors
-    }, []);
+    const [redirects, setRedirects] = useState<ArticleSeoRedirect[]>([]);
 
     useEffect(() => {
         if (initialData) {
+            setRedirects(initialData.redirects || []);
             setFormData({
                 title: initialData.title,
                 slug: initialData.slug,
@@ -87,8 +85,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ articleId, initialData })
     const handleToggleFeatured = () => {
         setFormData(prev => ({ ...prev, is_featured: !prev.is_featured }));
     };
-
-
 
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -286,10 +282,12 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ articleId, initialData })
                     <ArticleEditorSidebar
                         formData={formData}
                         articleId={articleId}
+                        redirects={redirects}
                         showSeoSection={showSeoSection}
                         onFormDataChange={handleFormDataChange}
                         onToggleFeatured={handleToggleFeatured}
                         onToggleSeoSection={() => setShowSeoSection(!showSeoSection)}
+                        onRedirectsChange={setRedirects}
                         onNotify={(type, msg) => {
                             if (type === 'error') setError(msg);
                             else setSuccess(msg);

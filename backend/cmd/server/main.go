@@ -103,7 +103,9 @@ func main() {
 	userService := service.NewUserService(userRepo, wsHub)
 	userHandler := handler.NewUserHandler(userService, respCache, wsHub)
 
-	appRouter := router.NewRouter(articleHandler, categoryHandler, tagHandler, authHandler, statsHandler, dashboardHandler, userHandler, uploadHandler, wsHub, respCache)
+	seoHandler := handler.NewSeoHandler(seoService)
+
+	appRouter := router.NewRouter(articleHandler, categoryHandler, tagHandler, authHandler, statsHandler, dashboardHandler, userHandler, uploadHandler, seoHandler, wsHub, respCache)
 	appRouter.Setup(r)
 
 	// 6. Start Server

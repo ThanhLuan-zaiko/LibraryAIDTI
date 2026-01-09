@@ -31,6 +31,29 @@ func (s *seoService) CreateRedirect(fromSlug, toSlug string) error {
 	return s.repo.CreateRedirect(redirect)
 }
 
+func (s *seoService) GetAllRedirects(page, limit int, search string) ([]domain.SeoRedirect, int64, error) {
+	return s.repo.GetAllRedirects(page, limit, search)
+}
+
+func (s *seoService) UpdateRedirect(id uuid.UUID, fromSlug, toSlug string) error {
+
+	existing, _ := s.repo.GetRedirectByFromSlug(fromSlug)
+	if existing != nil && existing.ID != id {
+		return errors.New("redirect path already taken by another rule")
+	}
+
+	redirect := &domain.SeoRedirect{
+		ID:       id,
+		FromSlug: fromSlug,
+		ToSlug:   toSlug,
+	}
+	return s.repo.UpdateRedirect(redirect)
+}
+
+func (s *seoService) DeleteRedirect(id uuid.UUID) error {
+	return s.repo.DeleteRedirect(id)
+}
+
 func (s *seoService) GetDestination(slug string) (string, error) {
 	// Check global redirect first
 	if redirect, err := s.repo.GetRedirectByFromSlug(slug); err == nil {
@@ -51,8 +74,6 @@ func (s *seoService) CreateArticleRedirect(articleID uuid.UUID, fromSlug, toSlug
 	// Check if exists
 	existing, _ := s.repo.GetArticleRedirectByFromSlug(fromSlug)
 	if existing != nil {
-		// If it exists, we might want to update it or return error.
-		// For now, let's assume strict uniqueness.
 		return errors.New("article redirect already exists for this slug")
 	}
 
@@ -62,4 +83,16 @@ func (s *seoService) CreateArticleRedirect(articleID uuid.UUID, fromSlug, toSlug
 		ToSlug:    toSlug,
 	}
 	return s.repo.CreateArticleRedirect(redirect)
+}
+
+func (s *seoService) GetAllArticleRedirects(page, limit int, search string) ([]domain.ArticleSeoRedirect, int64, error) {
+	return s.repo.GetAllArticleRedirects(page, limit, search)
+}
+
+func (s *seoService) DeleteArticleRedirect(id uuid.UUID) error {
+	return s.repo.DeleteArticleRedirect(id)
+}
+
+func (s *seoService) GetSeoTrends(months int) ([]domain.SeoTrendData, error) {
+	return s.repo.GetSeoTrends(months)
 }

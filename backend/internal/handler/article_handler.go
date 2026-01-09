@@ -262,6 +262,12 @@ func (h *ArticleHandler) GetArticle(c *gin.Context) {
 		// Try slug if not UUID
 		article, err := h.service.GetArticleBySlug(idStr)
 		if err != nil {
+			// Check for redirect
+			if dest, errRedir := h.service.GetRedirectDestination(idStr); errRedir == nil && dest != "" {
+				c.Redirect(http.StatusMovedPermanently, "/api/v1/articles/"+dest)
+				return
+			}
+
 			c.JSON(http.StatusNotFound, gin.H{"error": "Article not found"})
 			return
 		}
@@ -532,4 +538,45 @@ func (h *ArticleHandler) ChangeStatus(c *gin.Context) {
 	h.hub.BroadcastEvent("admin_data_updated", gin.H{"module": "articles", "action": "change_status"})
 
 	c.JSON(http.StatusOK, gin.H{"message": "Status updated successfully"})
+}
+
+func (h *ArticleHandler) AddRedirect(c *gin.Context) {
+	idStr := c.Param("id")
+	articleID, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	var req struct {
+		FromSlug string `json:"from_slug" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.CreateArticleRedirect(articleID, req.FromSlug); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Redirect created successfully"})
+}
+
+func (h *ArticleHandler) DeleteRedirect(c *gin.Context) {
+	redirectIDStr := c.Param("redirectId")
+	redirectID, err := uuid.Parse(redirectIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+		return
+	}
+
+	if err := h.service.DeleteArticleRedirect(redirectID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Redirect deleted successfully"})
 }

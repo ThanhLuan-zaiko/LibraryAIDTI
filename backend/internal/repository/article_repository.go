@@ -55,6 +55,7 @@ func (r *articleRepository) GetAll(offset, limit int, filter map[string]interfac
 			Preload("Author").
 			Preload("Tags").
 			Preload("Images").
+			Preload("Redirects").
 			Preload("Related").
 			Preload("MediaList.Media") // Preload ArticleMedia and the internal MediaFile
 	}
@@ -99,6 +100,7 @@ func (r *articleRepository) GetByID(id uuid.UUID) (*domain.Article, error) {
 		Preload("Images").
 		Preload("MediaList.Media").
 		Preload("SEOMetadata").
+		Preload("Redirects").
 		Preload("Related").
 		Preload("Versions").
 		Preload("StatusLogs").
@@ -117,6 +119,7 @@ func (r *articleRepository) GetBySlug(slug string) (*domain.Article, error) {
 		Preload("Images").
 		Preload("MediaList.Media").
 		Preload("SEOMetadata").
+		Preload("Redirects").
 		Preload("Related").
 		Preload("Versions").
 		Preload("StatusLogs").

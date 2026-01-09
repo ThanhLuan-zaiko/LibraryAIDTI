@@ -24,7 +24,25 @@ export interface Article {
         image_url: string;
         description?: string;
         is_primary?: boolean;
+        seo_metadata?: SeoMetadata;
     }[];
+    redirects?: ArticleSeoRedirect[];
+}
+
+export interface SeoMetadata {
+    meta_title?: string;
+    meta_description?: string;
+    meta_keywords?: string;
+    og_image?: string;
+    canonical_url?: string;
+}
+
+export interface ArticleSeoRedirect {
+    id: string;
+    article_id: string;
+    from_slug: string;
+    to_slug: string;
+    created_at: string;
 }
 
 export interface ArticleInput {
@@ -99,9 +117,17 @@ export const articleService = {
         return response.data;
     },
 
-    async changeStatus(id: string, status: string, note?: string) {
-        const response = await apiClient.put<{ message: string }>(`${ARTICLES_URL}/${id}/status`, { status, note });
+    async updateStatus(id: string, status: Article['status'], note?: string): Promise<Article> {
+        const response = await apiClient.put<Article>(`${ARTICLES_URL}/${id}/status`, { status, note });
         return response.data;
+    },
+
+    async addRedirect(id: string, fromSlug: string): Promise<void> {
+        await apiClient.post(`${ARTICLES_URL}/${id}/redirects`, { from_slug: fromSlug });
+    },
+
+    async deleteRedirect(id: string, redirectId: string): Promise<void> {
+        await apiClient.delete(`${ARTICLES_URL}/${id}/redirects/${redirectId}`);
     },
 
     async uploadImage(file: File) {
