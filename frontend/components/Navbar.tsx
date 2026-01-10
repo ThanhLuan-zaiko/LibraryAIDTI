@@ -9,18 +9,33 @@ import AuthModal from './AuthModal';
 import ProfileModal from './ProfileModal';
 import { authService } from '@/services/auth.service';
 import { useAuth } from '@/hooks/useAuth';
+import { categoryService, Category } from '@/services/category.service';
 
 const Navbar = () => {
     const pathname = usePathname();
     const { user, logout } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
+    const [categories, setCategories] = useState<Category[]>([]);
 
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
+
+    // Fetch categories for dynamic menu
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const data = await categoryService.getTree();
+                setCategories(data);
+            } catch (error) {
+                console.error("Failed to fetch categories:", error);
+            }
+        };
+        fetchCategories();
+    }, []);
 
     // Handle scroll effect
     useEffect(() => {
@@ -32,7 +47,7 @@ const Navbar = () => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    // Hide navbar on admin routes - Moved after all hooks to comply with Rules of Hooks
+    // Hide navbar on admin routes
     if (pathname?.startsWith('/admin')) {
         return null;
     }
@@ -48,33 +63,40 @@ const Navbar = () => {
         setIsOpen(false); // close mobile menu
     };
 
-    const navLinks = [
+    interface NavLink {
+        name: string;
+        href: string;
+        dropdown?: NavLink[];
+    }
+
+    // Transform categories to nav items
+    const categoryToNavItem = (cat: Category): NavLink => ({
+        name: cat.name,
+        href: `/category/${cat.slug}`,
+        dropdown: cat.children && cat.children.length > 0
+            ? cat.children.map(child => categoryToNavItem(child))
+            : undefined
+    });
+
+    const dynamicLinks = categories.map(categoryToNavItem);
+
+    const MAX_LINKS = 7;
+    const initialLinks: NavLink[] = [
         { name: 'Trang chủ', href: '/' },
-        { name: 'Chính trị', href: '/politics' },
-        { name: 'Kinh doanh', href: '/business' },
-        {
-            name: 'Công nghệ',
-            href: '/technology',
-            dropdown: [
-                { name: 'AI & Robot', href: '/technology/ai' },
-                { name: 'Thiết bị', href: '/technology/gadgets' },
-                { name: 'Phần mềm', href: '/technology/software' },
-                { name: 'An ninh mạng', href: '/technology/cybersecurity' },
-            ]
-        },
-        { name: 'Thể thao', href: '/sports' },
-        { name: 'Giải trí', href: '/entertainment' },
-        {
+    ];
+
+    let navLinks: NavLink[] = [...initialLinks];
+
+    if (dynamicLinks.length <= MAX_LINKS) {
+        navLinks = [...navLinks, ...dynamicLinks];
+    } else {
+        navLinks = [...navLinks, ...dynamicLinks.slice(0, MAX_LINKS)];
+        navLinks.push({
             name: 'Thêm',
             href: '#',
-            dropdown: [
-                { name: 'Sức khỏe', href: '/health' },
-                { name: 'Khoa học', href: '/science' },
-                { name: 'Đời sống', href: '/lifestyle' },
-                { name: 'Du lịch', href: '/travel' },
-            ]
-        },
-    ];
+            dropdown: dynamicLinks.slice(MAX_LINKS)
+        });
+    }
 
     // Unified User Action component
     const UserActions = ({ isMobile = false }) => {
@@ -232,15 +254,35 @@ const Navbar = () => {
                                     {link.dropdown && (
                                         <div className={`absolute left-0 top-[90%] pt-2 w-52 z-50 transition-all duration-300 pointer-events-none group-hover:pointer-events-auto opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0`}>
                                             <div className="bg-white border border-gray-100 shadow-2xl rounded-2xl py-3 overflow-hidden">
-                                                {link.dropdown.map((item, idx) => (
-                                                    <Link
-                                                        key={item.name}
-                                                        href={item.href}
-                                                        style={{ transitionDelay: `${idx * 40}ms` }}
-                                                        className="block px-5 py-2.5 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 transform translate-x-0 group-hover:translate-x-1"
-                                                    >
-                                                        {item.name}
-                                                    </Link>
+                                                {link.dropdown.map((item: NavLink, idx: number) => (
+                                                    <div key={item.name} className="relative group/sub">
+                                                        <Link
+                                                            href={item.href}
+                                                            style={{ transitionDelay: `${idx * 40}ms` }}
+                                                            className="flex items-center justify-between px-5 py-2.5 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200"
+                                                        >
+                                                            <span>{item.name}</span>
+                                                            {item.dropdown && (
+                                                                <HiChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg] group-hover/sub:text-blue-600" />
+                                                            )}
+                                                        </Link>
+
+                                                        {item.dropdown && (
+                                                            <div className="absolute left-full top-0 ml-1 w-52 opacity-0 translate-x-2 pointer-events-none group-hover/sub:opacity-100 group-hover/sub:translate-x-0 group-hover/sub:pointer-events-auto transition-all duration-300">
+                                                                <div className="bg-white border border-gray-100 shadow-2xl rounded-2xl py-3 overflow-hidden">
+                                                                    {item.dropdown.map((subItem: NavLink) => (
+                                                                        <Link
+                                                                            key={subItem.name}
+                                                                            href={subItem.href}
+                                                                            className="block px-5 py-2.5 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200"
+                                                                        >
+                                                                            {subItem.name}
+                                                                        </Link>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 ))}
                                             </div>
                                         </div>
@@ -326,17 +368,47 @@ const Navbar = () => {
                                         </div>
 
                                         {/* Mobile Dropdown Sub-menu */}
-                                        <div className={`overflow-hidden transition-all duration-500 ease-in-out ${activeDropdown === link.name ? 'max-h-96' : 'max-h-0'}`}>
+                                        <div className={`overflow-hidden transition-all duration-500 ease-in-out ${activeDropdown === link.name ? 'max-h-[1000px]' : 'max-h-0'}`}>
                                             <div className="bg-gray-50/50 mx-2 rounded-2xl border border-gray-100/50 mb-4 px-2 py-2">
-                                                {link.dropdown?.map((item) => (
-                                                    <Link
-                                                        key={item.name}
-                                                        href={item.href}
-                                                        className="block px-4 py-3 text-base font-medium text-gray-600 hover:text-blue-600 active:bg-blue-50 rounded-xl transition-all"
-                                                        onClick={() => setIsOpen(false)}
-                                                    >
-                                                        {item.name}
-                                                    </Link>
+                                                {link.dropdown?.map((item: NavLink) => (
+                                                    <div key={item.name}>
+                                                        <div className="flex items-center justify-between">
+                                                            <Link
+                                                                href={item.href}
+                                                                className="flex-grow px-4 py-3 text-base font-medium text-gray-600 hover:text-blue-600 active:bg-blue-50 rounded-xl transition-all"
+                                                                onClick={() => setIsOpen(false)}
+                                                            >
+                                                                {item.name}
+                                                            </Link>
+                                                            {item.dropdown && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        setActiveDropdown(activeDropdown === `${link.name}-${item.name}` ? link.name : `${link.name}-${item.name}`);
+                                                                    }}
+                                                                    className="p-3"
+                                                                >
+                                                                    <HiChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${activeDropdown === `${link.name}-${item.name}` ? 'rotate-180 text-black' : ''}`} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        {item.dropdown && (
+                                                            <div className={`overflow-hidden transition-all duration-300 ${activeDropdown === `${link.name}-${item.name}` ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                                                                <div className="pl-4 border-l-2 border-gray-100 ml-4 mb-2">
+                                                                    {item.dropdown.map((subItem: NavLink) => (
+                                                                        <Link
+                                                                            key={subItem.name}
+                                                                            href={subItem.href}
+                                                                            className="block px-4 py-2 text-sm font-medium text-gray-500 hover:text-blue-600 transition-all"
+                                                                            onClick={() => setIsOpen(false)}
+                                                                        >
+                                                                            {subItem.name}
+                                                                        </Link>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 ))}
                                             </div>
                                         </div>

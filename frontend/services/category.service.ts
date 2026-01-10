@@ -40,6 +40,11 @@ export const categoryService = {
         return response.data;
     },
 
+    async getTree() {
+        const response = await apiClient.get<Category[]>(`${CATEGORIES_URL}/tree`);
+        return response.data;
+    },
+
     async getList(params: { page: number; limit: number; search?: string; sort?: string; order?: string; minimal?: boolean }) {
         const response = await apiClient.get<PaginatedResult<Category>>(CATEGORIES_URL, { params: { ...params, q: params.search } });
         return response.data;

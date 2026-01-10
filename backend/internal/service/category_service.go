@@ -40,6 +40,10 @@ func (s *categoryService) GetCategoryStats() ([]domain.CategoryStats, error) {
 	return s.repo.GetStats()
 }
 
+func (s *categoryService) GetCategoryTree() ([]domain.Category, error) {
+	return s.repo.GetTree()
+}
+
 func (s *categoryService) GetCategoryList(page, limit int, search, sortBy, order string, minimal bool) (*domain.PaginatedResult[domain.Category], error) {
 	if page < 1 {
 		page = 1

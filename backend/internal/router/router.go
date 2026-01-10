@@ -117,6 +117,7 @@ func (r *Router) Setup(engine *gin.Engine) {
 		{
 			categories.POST("", r.categoryHandler.CreateCategory)
 			categories.GET("", middleware.CacheMiddleware(r.cache, time.Second*5), r.categoryHandler.GetCategories)
+			categories.GET("/tree", middleware.CacheMiddleware(r.cache, time.Minute*10), r.categoryHandler.GetCategoryTree)
 			categories.GET("/stats", middleware.CacheMiddleware(r.cache, time.Minute*5), r.categoryHandler.GetStats)
 			categories.GET("/:id", r.categoryHandler.GetCategory)
 			categories.PUT("/:id", r.categoryHandler.UpdateCategory)

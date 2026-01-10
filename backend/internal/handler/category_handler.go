@@ -104,6 +104,15 @@ func (h *CategoryHandler) GetStats(c *gin.Context) {
 	c.JSON(http.StatusOK, stats)
 }
 
+func (h *CategoryHandler) GetCategoryTree(c *gin.Context) {
+	categories, err := h.service.GetCategoryTree()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, categories)
+}
+
 func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)

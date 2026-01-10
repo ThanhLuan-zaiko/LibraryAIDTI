@@ -26,6 +26,25 @@ func (r *categoryRepository) GetAll() ([]domain.Category, error) {
 	return categories, err
 }
 
+func (r *categoryRepository) GetTree() ([]domain.Category, error) {
+	var categories []domain.Category
+	// Fetch only top-level categories (parent_id is null) that are active
+	err := r.db.Where("parent_id IS NULL AND is_active = ?", true).
+		Order("name ASC").
+		Find(&categories).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Recursively load children for each top-level category
+	for i := range categories {
+		r.loadChildren(&categories[i])
+	}
+
+	return categories, nil
+}
+
 func (r *categoryRepository) GetByID(id uuid.UUID) (*domain.Category, error) {
 	var category domain.Category
 	if err := r.db.Preload("Parent").Preload("Children").First(&category, "id = ?", id).Error; err != nil {
