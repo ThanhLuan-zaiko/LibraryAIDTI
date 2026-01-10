@@ -8,11 +8,15 @@ import (
 )
 
 type DashboardHandler struct {
-	service domain.DashboardService
+	service   domain.DashboardService
+	semaphore chan struct{}
 }
 
 func NewDashboardHandler(service domain.DashboardService) *DashboardHandler {
-	return &DashboardHandler{service: service}
+	return &DashboardHandler{
+		service:   service,
+		semaphore: make(chan struct{}, 3), // Limit to 3 concurrent heavy analytics requests
+	}
 }
 
 func (h *DashboardHandler) GetAnalytics(c *gin.Context) {
@@ -25,6 +29,10 @@ func (h *DashboardHandler) GetAnalytics(c *gin.Context) {
 }
 
 func (h *DashboardHandler) GetAdvancedAnalytics(c *gin.Context) {
+	// Semaphore: acquire
+	h.semaphore <- struct{}{}
+	defer func() { <-h.semaphore }() // Release
+
 	analytics, err := h.service.GetAdvancedAnalytics()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

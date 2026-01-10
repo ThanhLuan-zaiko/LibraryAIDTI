@@ -71,6 +71,18 @@ const ArticleManagementAdvanced = () => {
 
     useEffect(() => {
         fetchData();
+
+        // Listen for WebSocket updates from useAuth dispatcher
+        const handleUpdate = (event: any) => {
+            const { module } = event.detail || {};
+            if (module === 'articles') {
+                console.log("[AdvancedAnalytics] Real-time update triggered via WebSocket");
+                fetchData();
+            }
+        };
+
+        window.addEventListener('admin-data-updated', handleUpdate);
+        return () => window.removeEventListener('admin-data-updated', handleUpdate);
     }, []);
 
     if (loading || !advancedData) return (

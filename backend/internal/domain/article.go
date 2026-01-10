@@ -6,6 +6,12 @@ import (
 	"github.com/google/uuid"
 )
 
+type RelatedArticleInfo struct {
+	ID    uuid.UUID `json:"id"`
+	Title string    `json:"title"`
+	Slug  string    `json:"slug"`
+}
+
 type ArticleStatus string
 
 const (
@@ -100,6 +106,8 @@ type ArticleRepository interface {
 	// Helper methods
 	AddTags(articleID uuid.UUID, tagIDs []uuid.UUID) error
 	UpdateStatus(id uuid.UUID, status ArticleStatus) error
+	GetIncomingRelations(id uuid.UUID) ([]RelatedArticleInfo, error)
+	GetOutgoingRelations(id uuid.UUID) ([]RelatedArticleInfo, error)
 }
 
 type ArticleService interface {
@@ -115,4 +123,5 @@ type ArticleService interface {
 	CreateArticleRedirect(articleID uuid.UUID, fromSlug string) error
 	DeleteArticleRedirect(redirectID uuid.UUID) error
 	GetRedirectDestination(slug string) (string, error)
+	GetArticleRelations(id uuid.UUID) ([]RelatedArticleInfo, []RelatedArticleInfo, error)
 }

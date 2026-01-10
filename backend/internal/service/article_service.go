@@ -351,3 +351,17 @@ func (s *articleService) DeleteArticleRedirect(redirectID uuid.UUID) error {
 func (s *articleService) GetRedirectDestination(slug string) (string, error) {
 	return s.seoService.GetDestination(slug)
 }
+
+func (s *articleService) GetArticleRelations(id uuid.UUID) ([]domain.RelatedArticleInfo, []domain.RelatedArticleInfo, error) {
+	incoming, err := s.repo.GetIncomingRelations(id)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	outgoing, err := s.repo.GetOutgoingRelations(id)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return incoming, outgoing, nil
+}

@@ -234,3 +234,29 @@ func (r *articleRepository) AddTags(articleID uuid.UUID, tagIDs []uuid.UUID) err
 func (r *articleRepository) UpdateStatus(id uuid.UUID, status domain.ArticleStatus) error {
 	return r.db.Model(&domain.Article{}).Where("id = ?", id).Update("status", status).Error
 }
+
+func (r *articleRepository) GetIncomingRelations(id uuid.UUID) ([]domain.RelatedArticleInfo, error) {
+	var result []domain.RelatedArticleInfo
+	err := r.db.Raw(`
+		SELECT a.id, a.title, a.slug
+		FROM articles a
+		JOIN article_relations ar ON a.id = ar.article_id
+		WHERE ar.related_article_id = ?
+		ORDER BY a.title
+		LIMIT 50
+	`, id).Scan(&result).Error
+	return result, err
+}
+
+func (r *articleRepository) GetOutgoingRelations(id uuid.UUID) ([]domain.RelatedArticleInfo, error) {
+	var result []domain.RelatedArticleInfo
+	err := r.db.Raw(`
+		SELECT a.id, a.title, a.slug
+		FROM articles a
+		JOIN article_relations ar ON a.id = ar.related_article_id
+		WHERE ar.article_id = ?
+		ORDER BY a.title
+		LIMIT 50
+	`, id).Scan(&result).Error
+	return result, err
+}
