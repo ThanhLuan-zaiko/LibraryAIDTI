@@ -20,6 +20,9 @@ export interface Article {
     is_featured: boolean;
     view_count: number;
     comment_count?: number;
+    complexity?: number;
+    depth?: number;
+    impact?: number;
     images?: {
         id: string;
         image_url: string;
@@ -28,6 +31,7 @@ export interface Article {
         seo_metadata?: SeoMetadata;
     }[];
     redirects?: ArticleSeoRedirect[];
+    tags?: { id: string; name: string; slug: string }[];
 }
 
 export interface SeoMetadata {

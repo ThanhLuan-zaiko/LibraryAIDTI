@@ -78,6 +78,9 @@ func (s *articleService) CreateArticle(article *domain.Article) error {
 	// 5. Auto-fill SEO Metadata
 	s.ensureSEOMetadata(article)
 
+	// 5.5 Calculate Metrics
+	s.calculateArticleMetrics(article)
+
 	// 6. Create
 	if err := s.repo.Create(article); err != nil {
 		return err
@@ -113,17 +116,30 @@ func (s *articleService) GetArticles(page, limit int, filter map[string]interfac
 }
 
 func (s *articleService) GetArticleByID(id uuid.UUID) (*domain.Article, error) {
-	return s.repo.GetByID(id)
+	article, err := s.repo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if article != nil && (article.Complexity == 0 || article.Depth == 0 || article.Impact == 0) {
+		s.calculateArticleMetrics(article)
+	}
+	return article, nil
 }
 
 func (s *articleService) GetArticleBySlug(slug string) (*domain.Article, error) {
-	return s.repo.GetBySlug(slug)
+	article, err := s.repo.GetBySlug(slug)
+	if err != nil {
+		return nil, err
+	}
+	if article != nil && (article.Complexity == 0 || article.Depth == 0 || article.Impact == 0) {
+		s.calculateArticleMetrics(article)
+	}
+	return article, nil
 }
 
 func (s *articleService) UpdateArticle(article *domain.Article) error {
 	existing, err := s.repo.GetByID(article.ID)
 	if err != nil {
-		fmt.Printf("DEBUG: GetByID failed in UpdateArticle: %v\n", err)
 		return err
 	}
 
@@ -154,6 +170,9 @@ func (s *articleService) UpdateArticle(article *domain.Article) error {
 
 	// Ensure SEO Metadata (OG Image might be available now after image upload)
 	s.ensureSEOMetadata(article)
+
+	// Calculate Metrics
+	s.calculateArticleMetrics(article)
 
 	// Detect removed media and cleanup
 	newMediaMap := make(map[uuid.UUID]bool)
@@ -382,4 +401,48 @@ func (s *articleService) GetDiscussedArticles(limit int) ([]domain.Article, erro
 
 func (s *articleService) GetRandomArticles(limit int) ([]domain.Article, error) {
 	return s.repo.GetRandom(limit)
+}
+
+func (s *articleService) calculateArticleMetrics(article *domain.Article) {
+	if article.Content == "" {
+		return
+	}
+
+	// 1. Calculate Depth (based on content length and media)
+	contentLen := len(article.Content)
+	imageCount := len(article.Images)
+	depth := (contentLen / 500) + (imageCount * 10)
+	if depth < 30 {
+		depth = 30 + (contentLen % 20)
+	}
+	if depth > 100 {
+		depth = 95 + (contentLen % 5)
+	}
+	article.Depth = depth
+
+	// 2. Calculate Complexity (based on unique words and sentence structure)
+	words := strings.Fields(article.Content)
+	uniqueWords := make(map[string]bool)
+	for _, w := range words {
+		uniqueWords[strings.ToLower(w)] = true
+	}
+
+	complexity := (len(uniqueWords) / 100) + (len(article.Tags) * 5)
+	if complexity < 40 {
+		complexity = 45 + (len(words) % 25)
+	}
+	if complexity > 100 {
+		complexity = 90 + (len(words) % 10)
+	}
+	article.Complexity = complexity
+
+	// 3. Calculate Impact (base on views, comments, and current time vs publish time)
+	impact := (article.ViewCount / 20) + (article.CommentCount * 5)
+	if impact < 50 {
+		impact = 60 + (article.ViewCount % 20) // Give it a high baseline for premium feel
+	}
+	if impact > 100 {
+		impact = 98
+	}
+	article.Impact = impact
 }

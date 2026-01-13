@@ -1,67 +1,78 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { articleService, Article } from '@/services/article.service';
 import HeroSection from '@/components/HeroSection';
 import ArticleCard from '@/components/ArticleCard';
 import TrendingSection from '@/components/TrendingSection';
 import { HiOutlineArrowRight, HiOutlineLightningBolt, HiOutlineViewGrid } from 'react-icons/hi';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import TopicCloud from '@/components/TopicCloud';
 import EngagementShowcase from '@/components/EngagementShowcase';
 import ImpactBar from '@/components/ImpactBar';
 import DiscoveryGrid from '@/components/DiscoveryGrid';
 import Pagination from '@/components/Pagination';
 
-export default function Home() {
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const urlPage = parseInt(searchParams.get('page') || '1');
+  const isInitialMount = React.useRef(true);
+
   const [featured, setFeatured] = useState<Article[]>([]);
   const [trending, setTrending] = useState<Article[]>([]);
   const [latest, setLatest] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(urlPage);
   const [totalPages, setTotalPages] = useState(1);
   const [latestLoading, setLatestLoading] = useState(false);
   const PAGE_SIZE = 9;
 
+  // Initial load for featured and trending
   useEffect(() => {
-    const fetchInitialData = async () => {
+    const fetchStaticData = async () => {
       try {
-        setLoading(true);
-        const [featuredRes, trendingRes, latestRes] = await Promise.all([
+        const [featuredRes, trendingRes] = await Promise.all([
           articleService.getList({ page: 1, limit: 5, is_featured: true, status: 'PUBLISHED' }),
           articleService.getTrending(6),
-          articleService.getList({ page: 1, limit: PAGE_SIZE, status: 'PUBLISHED' })
         ]);
-
         setFeatured(featuredRes.data);
         setTrending(trendingRes.data);
-        setLatest(latestRes.data);
-        setTotalPages(Math.ceil(latestRes.meta.total / PAGE_SIZE));
       } catch (error) {
-        console.error('Failed to fetch homepage data:', error);
-      } finally {
-        setLoading(false);
+        console.error('Failed to fetch static homepage data:', error);
       }
     };
-
-    fetchInitialData();
+    fetchStaticData();
   }, []);
 
-  const handlePageChange = async (page: number) => {
+  // Sync with URL page changes
+  useEffect(() => {
+    handlePageChange(urlPage, true);
+  }, [urlPage]);
+
+  const handlePageChange = async (page: number, shouldScroll = true) => {
     try {
       setLatestLoading(true);
       setCurrentPage(page);
       const res = await articleService.getList({ page, limit: PAGE_SIZE, status: 'PUBLISHED' });
       setLatest(res.data);
-      // Scroll to latest section
-      const section = document.getElementById('latest-news');
-      if (section) {
-        section.scrollIntoView({ behavior: 'smooth' });
+      setTotalPages(Math.ceil(res.meta.total / PAGE_SIZE));
+
+      if (shouldScroll && !isInitialMount.current) {
+        // Use a slight delay to ensure the DOM has updated or use scrollIntoView directly
+        setTimeout(() => {
+          const section = document.getElementById('latest-news');
+          if (section) {
+            section.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 0);
       }
+      isInitialMount.current = false;
     } catch (error) {
       console.error('Failed to fetch page:', error);
     } finally {
       setLatestLoading(false);
+      setLoading(false);
     }
   };
 
@@ -98,7 +109,7 @@ export default function Home() {
               <span>Mới nhất hôm nay</span>
             </div>
             <h2 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tighter">
-              Khám phá kiến thức <br className="hidden md:block" /> mơi mỗi ngày
+              Khám phá kiến thức <br className="hidden md:block" /> mới mỗi ngày
             </h2>
           </div>
           <Link
@@ -121,6 +132,7 @@ export default function Home() {
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={handlePageChange}
+          baseUrl="/"
         />
       </section>
 
@@ -168,4 +180,12 @@ export default function Home() {
       </footer>
     </main>
   );
+}
+
+export default function Home() {
+  return (
+    <Suspense>
+      <HomeContent />
+    </Suspense>
+  )
 }

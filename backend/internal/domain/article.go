@@ -51,6 +51,9 @@ type Article struct {
 	Redirects    []ArticleSeoRedirect `gorm:"foreignKey:ArticleID" json:"redirects"`
 	ViewCount    int                  `gorm:"default:0" json:"view_count"`    // Keep this for stats
 	CommentCount int                  `gorm:"default:0" json:"comment_count"` // Actual persisted count for performance
+	Complexity   int                  `gorm:"default:0" json:"complexity"`    // Content complexity score (0-100)
+	Depth        int                  `gorm:"default:0" json:"depth"`         // Content depth/detail score (0-100)
+	Impact       int                  `gorm:"default:0" json:"impact"`        // Reader impact/engagement score (0-100)
 	ImageURL     string               `gorm:"-" json:"image_url"`             // Alias for primary image URL
 }
 

@@ -116,6 +116,7 @@ func (r *articleRepository) GetByID(id uuid.UUID) (*domain.Article, error) {
 	if err != nil {
 		return nil, err
 	}
+	article.PopulateImageURL()
 	return &article, nil
 }
 
@@ -135,12 +136,13 @@ func (r *articleRepository) GetBySlug(slug string) (*domain.Article, error) {
 	if err != nil {
 		return nil, err
 	}
+	article.PopulateImageURL()
 	return &article, nil
 }
 
 func (r *articleRepository) Update(article *domain.Article) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(article).Select("Title", "Slug", "Summary", "Content", "CategoryID", "Status", "IsFeatured", "AllowComment", "PublishedAt", "UpdatedAt", "ViewCount").
+		if err := tx.Model(article).Select("Title", "Slug", "Summary", "Content", "CategoryID", "Status", "IsFeatured", "AllowComment", "PublishedAt", "UpdatedAt", "ViewCount", "Complexity", "Depth", "Impact").
 			Updates(article).Error; err != nil {
 			return err
 		}

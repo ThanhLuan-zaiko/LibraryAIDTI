@@ -119,7 +119,7 @@ func (r *Router) Setup(engine *gin.Engine) {
 		// Stats routes
 		stats := v1.Group("/stats")
 		{
-			stats.GET("/public", middleware.CacheMiddleware(r.cache, time.Hour), r.statsHandler.GetPublicStats)
+			stats.GET("/public", middleware.CacheMiddleware(r.cache, time.Minute*5), r.statsHandler.GetPublicStats)
 		}
 
 		// Category routes
