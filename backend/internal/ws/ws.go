@@ -15,10 +15,11 @@ import (
 )
 
 const (
-	writeWait      = 10 * time.Second
-	pongWait       = 60 * time.Second
-	pingPeriod     = (pongWait * 9) / 10
-	maxMessageSize = 512
+	writeWait             = 10 * time.Second
+	pongWait              = 60 * time.Second
+	pingPeriod            = (pongWait * 9) / 10
+	maxMessageSize        = 4096 // Increased from 512 to 4096 bytes
+	maxConnectionsPerUser = 5    // Limit connections per user
 )
 
 var upgrader = websocket.Upgrader{
@@ -67,8 +68,22 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.Register:
 			h.mu.Lock()
+			// Check connection limit before registering
+			existingConnections := len(h.Clients[client.UserID])
+			if existingConnections >= maxConnectionsPerUser {
+				log.Printf("User %s exceeded max connections (%d), rejecting", client.UserID, maxConnectionsPerUser)
+				h.mu.Unlock()
+				client.Conn.Close()
+				close(client.Send)
+				continue
+			}
+
 			// Register User
+			if h.Clients[client.UserID] == nil {
+				h.Clients[client.UserID] = []*Client{}
+			}
 			h.Clients[client.UserID] = append(h.Clients[client.UserID], client)
+			log.Printf("Client registered: %s (total connections: %d)", client.UserID, len(h.Clients[client.UserID]))
 			isFirstConnection := len(h.Clients[client.UserID]) == 1
 
 			// Initialize client rooms

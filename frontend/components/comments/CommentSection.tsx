@@ -226,6 +226,7 @@ export default function CommentSection({ articleId }: CommentSectionProps) {
                 onReply={handleReply}
                 onDelete={handleDelete}
                 onRestore={handleRestore}
+                articleId={articleId}
             />
 
             {loading && (

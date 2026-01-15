@@ -83,6 +83,27 @@ func (h *CommentHandler) GetComments(c *gin.Context) {
 	})
 }
 
+func (h *CommentHandler) GetReplies(c *gin.Context) {
+	parentID := c.Param("commentId")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	replies, total, err := h.service.GetRepliesByParentID(parentID, page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": replies,
+		"meta": gin.H{
+			"total": total,
+			"page":  page,
+			"limit": limit,
+		},
+	})
+}
+
 func (h *CommentHandler) DeleteComment(c *gin.Context) {
 	id := c.Param("id")
 	userIDStr, exists := c.Get("user_id")

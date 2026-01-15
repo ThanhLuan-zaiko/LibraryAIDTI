@@ -49,5 +49,12 @@ export const commentService = {
 
     async restore(id: string): Promise<void> {
         await apiClient.put(`/comments/${id}/restore`);
+    },
+
+    async getReplies(articleId: string, commentId: string, page = 1, limit = 10): Promise<CommentListResponse> {
+        const res = await apiClient.get<CommentListResponse>(`/articles/${articleId}/comments/${commentId}/replies`, {
+            params: { page, limit }
+        });
+        return res.data;
     }
 };

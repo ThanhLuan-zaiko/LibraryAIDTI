@@ -13,6 +13,7 @@ type CommentService interface {
 	Create(comment *domain.Comment) error
 	GetByID(id string) (*domain.Comment, error)
 	GetByArticleID(articleID string, page, limit int) ([]domain.Comment, int64, error)
+	GetRepliesByParentID(parentID string, page, limit int) ([]domain.Comment, int64, error)
 	Delete(id string, userID string) error  // userID to check ownership
 	Restore(id string, userID string) error // userID to check ownership
 }
@@ -37,6 +38,18 @@ func (s *commentService) Create(comment *domain.Comment) error {
 	}
 	if comment.Content == "" {
 		return errors.New("nội dung không được để trống")
+	}
+
+	// Content length validation
+	const MaxCommentLength = 5000
+	const MinCommentLength = 1
+
+	contentLen := len([]rune(comment.Content)) // Count Unicode characters, not bytes
+	if contentLen > MaxCommentLength {
+		return errors.New("bình luận quá dài (tối đa 5000 ký tự)")
+	}
+	if contentLen < MinCommentLength {
+		return errors.New("bình luận quá ngắn")
 	}
 
 	// If replying, check if parent exists (optional but good practice)
@@ -89,6 +102,16 @@ func (s *commentService) GetByID(id string) (*domain.Comment, error) {
 
 func (s *commentService) GetByArticleID(articleID string, page, limit int) ([]domain.Comment, int64, error) {
 	return s.repo.GetByArticleID(articleID, page, limit)
+}
+
+func (s *commentService) GetRepliesByParentID(parentID string, page, limit int) ([]domain.Comment, int64, error) {
+	// Validate parent exists
+	_, err := s.repo.GetByID(parentID)
+	if err != nil {
+		return nil, 0, errors.New("bình luận gốc không tồn tại")
+	}
+
+	return s.repo.GetRepliesByParentID(parentID, page, limit)
 }
 
 func (s *commentService) Delete(id string, userID string) error {

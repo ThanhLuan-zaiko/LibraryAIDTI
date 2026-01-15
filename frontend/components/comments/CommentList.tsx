@@ -9,9 +9,10 @@ interface CommentListProps {
     onReply: (parentId: string, content: string) => Promise<void>;
     onDelete?: (id: string) => Promise<void>;
     onRestore?: (id: string) => Promise<void>;
+    articleId: string;
 }
 
-export default function CommentList({ comments, currentUser, onReply, onDelete, onRestore }: CommentListProps) {
+export default function CommentList({ comments, currentUser, onReply, onDelete, onRestore, articleId }: CommentListProps) {
     if (!comments || comments.length === 0) {
         return (
             <div className="text-center py-10">
@@ -31,6 +32,7 @@ export default function CommentList({ comments, currentUser, onReply, onDelete, 
                     onDelete={onDelete}
                     onRestore={onRestore}
                     depth={0}
+                    articleId={articleId}
                 />
             ))}
         </div>

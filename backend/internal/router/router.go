@@ -120,6 +120,7 @@ func (r *Router) Setup(engine *gin.Engine) {
 
 			// Public Comment Routes (Read-only)
 			articles.GET("/:id/comments", r.commentHandler.GetComments)
+			articles.GET("/:id/comments/:commentId/replies", r.commentHandler.GetReplies)
 		}
 
 		// Stats routes
@@ -167,8 +168,9 @@ func (r *Router) Setup(engine *gin.Engine) {
 			// Comment Management (Protected)
 			// Rate limit: 0.33 rps (approx 20/min), burst 5
 			protected.POST("/comments", middleware.RateLimitMiddleware(rate.Limit(0.33), 5), r.commentHandler.CreateComment)
-			protected.DELETE("/comments/:id", r.commentHandler.DeleteComment)
-			protected.PUT("/comments/:id/restore", r.commentHandler.RestoreComment)
+			// Stricter rate limiting for delete/restore operations (10/min)
+			protected.DELETE("/comments/:id", middleware.RateLimitMiddleware(rate.Limit(0.16), 3), r.commentHandler.DeleteComment)
+			protected.PUT("/comments/:id/restore", middleware.RateLimitMiddleware(rate.Limit(0.16), 3), r.commentHandler.RestoreComment)
 
 			// Admin Stats
 			protected.GET("/admin/super-dashboard", middleware.CacheMiddleware(r.cache, time.Minute), r.dashboardHandler.GetSuperDashboard)

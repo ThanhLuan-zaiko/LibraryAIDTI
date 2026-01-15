@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { Comment } from '@/services/comment.service';
+import { Comment, commentService } from '@/services/comment.service';
 import CommentForm from './CommentForm';
 import { User } from '@/types/user';
+import { toast } from 'react-hot-toast';
+import { IoChevronDown, IoChatbubbleOutline, IoArrowUndoOutline, IoTrashOutline, IoRefreshOutline } from 'react-icons/io5';
 
 interface CommentItemProps {
     comment: Comment;
@@ -11,11 +13,24 @@ interface CommentItemProps {
     onDelete?: (id: string) => Promise<void>;
     onRestore?: (id: string) => Promise<void>;
     depth?: number;
+    articleId: string; // Needed for fetching paginated replies
 }
 
-export default function CommentItem({ comment, currentUser, onReply, onDelete, onRestore, depth = 0 }: CommentItemProps) {
+export default function CommentItem({ comment, currentUser, onReply, onDelete, onRestore, depth = 0, articleId }: CommentItemProps) {
     const [isReplying, setIsReplying] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [replyPage, setReplyPage] = useState(1);
+    const [hasMoreReplies, setHasMoreReplies] = useState(false);
+    const [displayedReplies, setDisplayedReplies] = useState<Comment[]>(comment.replies || []);
+    const [isRepliesCollapsed, setIsRepliesCollapsed] = useState(true); // Collapse by default
+
+    // Check if there might be more replies (basic heuristic)
+    React.useEffect(() => {
+        // If we have exactly 100 replies (the preload limit), there might be more
+        setHasMoreReplies((comment.replies?.length || 0) >= 100);
+        setDisplayedReplies(comment.replies || []);
+    }, [comment.replies]);
 
     const handleReplySubmit = async (content: string) => {
         setLoading(true);
@@ -24,6 +39,26 @@ export default function CommentItem({ comment, currentUser, onReply, onDelete, o
             setIsReplying(false);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadMoreReplies = async () => {
+        setLoadingMore(true);
+        try {
+            const nextPage = replyPage + 1;
+            const response = await commentService.getReplies(articleId, comment.id, nextPage, 10);
+
+            if (response.data.length > 0) {
+                setDisplayedReplies(prev => [...prev, ...response.data]);
+                setReplyPage(nextPage);
+                setHasMoreReplies(response.data.length === 10); // Has more if we got a full page
+            } else {
+                setHasMoreReplies(false);
+            }
+        } catch (error: any) {
+            toast.error('Không thể tải thêm phản hồi');
+        } finally {
+            setLoadingMore(false);
         }
     };
 
@@ -56,7 +91,7 @@ export default function CommentItem({ comment, currentUser, onReply, onDelete, o
                                     className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                                     title="Thu hồi bình luận"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                                    <IoTrashOutline className="w-3.5 h-3.5" />
                                 </button>
                             )}
                             {comment.is_deleted && isAuthor && onRestore && (
@@ -65,7 +100,7 @@ export default function CommentItem({ comment, currentUser, onReply, onDelete, o
                                     className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                                     title="Phục hồi bình luận"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></svg>
+                                    <IoRefreshOutline className="w-3.5 h-3.5" />
                                 </button>
                             )}
                         </div>
@@ -84,7 +119,7 @@ export default function CommentItem({ comment, currentUser, onReply, onDelete, o
                                     : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                                     }`}
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+                                <IoArrowUndoOutline className="w-3.5 h-3.5" />
                                 Trả lời
                             </button>
                         </div>
@@ -102,21 +137,64 @@ export default function CommentItem({ comment, currentUser, onReply, onDelete, o
                         </div>
                     )}
 
-                    {/* Nested Replies with Thread Line */}
-                    {comment.replies && comment.replies.length > 0 && (
-                        <div className="mt-4 pl-4 md:pl-6 border-l-2 border-gray-100 space-y-4">
-                            {comment.replies.map(reply => (
-                                <CommentItem
-                                    key={reply.id}
-                                    comment={reply}
-                                    currentUser={currentUser}
-                                    onReply={onReply}
-                                    onDelete={onDelete}
-                                    onRestore={onRestore}
-                                    depth={depth + 1}
+                    {/* Nested Replies - Collapsible */}
+                    {displayedReplies && displayedReplies.length > 0 && (
+                        <>
+                            {/* Toggle Button */}
+                            <button
+                                onClick={() => setIsRepliesCollapsed(!isRepliesCollapsed)}
+                                className="flex items-center gap-2 mt-3 ml-1 px-3 py-1.5 text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
+                            >
+                                <IoChatbubbleOutline className="w-4 h-4" />
+                                <span>
+                                    {isRepliesCollapsed
+                                        ? `Xem ${displayedReplies.length} phản hồi`
+                                        : 'Ẩn phản hồi'}
+                                </span>
+                                <IoChevronDown
+                                    className={`w-4 h-4 transition-transform ${!isRepliesCollapsed ? 'rotate-180' : ''}`}
                                 />
-                            ))}
-                        </div>
+                            </button>
+
+                            {/* Replies List */}
+                            {!isRepliesCollapsed && (
+                                <div className="mt-4 pl-4 md:pl-6 border-l-2 border-gray-100 space-y-4">
+                                    {displayedReplies.map(reply => (
+                                        <CommentItem
+                                            key={reply.id}
+                                            comment={reply}
+                                            currentUser={currentUser}
+                                            onReply={onReply}
+                                            onDelete={onDelete}
+                                            onRestore={onRestore}
+                                            depth={depth + 1}
+                                            articleId={articleId}
+                                        />
+                                    ))}
+
+                                    {/* Load More Replies Button */}
+                                    {hasMoreReplies && (
+                                        <button
+                                            onClick={loadMoreReplies}
+                                            disabled={loadingMore}
+                                            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all disabled:opacity-50"
+                                        >
+                                            {loadingMore ? (
+                                                <>
+                                                    <div className="w-4 h-4 border-2 border-gray-400 border-t-gray-700 rounded-full animate-spin" />
+                                                    <span>Đang tải...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <IoChevronDown className="w-4 h-4" />
+                                                    <span>Tải thêm phản hồi</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>

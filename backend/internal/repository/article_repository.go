@@ -109,7 +109,9 @@ func (r *articleRepository) GetByID(id uuid.UUID) (*domain.Article, error) {
 		Preload("MediaList.Media").
 		Preload("SEOMetadata").
 		Preload("Redirects").
-		Preload("Related").
+		Preload("Related.Images").
+		Preload("Related.Author").
+		Preload("Related.Category").
 		Preload("Versions").
 		Preload("StatusLogs").
 		First(&article, "id = ?", id).Error
@@ -117,6 +119,9 @@ func (r *articleRepository) GetByID(id uuid.UUID) (*domain.Article, error) {
 		return nil, err
 	}
 	article.PopulateImageURL()
+	for i := range article.Related {
+		article.Related[i].PopulateImageURL()
+	}
 	return &article, nil
 }
 
@@ -129,7 +134,9 @@ func (r *articleRepository) GetBySlug(slug string) (*domain.Article, error) {
 		Preload("MediaList.Media").
 		Preload("SEOMetadata").
 		Preload("Redirects").
-		Preload("Related").
+		Preload("Related.Images").
+		Preload("Related.Author").
+		Preload("Related.Category").
 		Preload("Versions").
 		Preload("StatusLogs").
 		First(&article, "slug = ?", slug).Error
@@ -137,6 +144,9 @@ func (r *articleRepository) GetBySlug(slug string) (*domain.Article, error) {
 		return nil, err
 	}
 	article.PopulateImageURL()
+	for i := range article.Related {
+		article.Related[i].PopulateImageURL()
+	}
 	return &article, nil
 }
 

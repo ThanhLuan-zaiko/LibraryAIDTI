@@ -14,6 +14,7 @@ import ArticleContent from '@/components/article/ArticleContent';
 import ArticleSidebar from '@/components/article/ArticleSidebar';
 import ArticleAuthor from '@/components/article/ArticleAuthor';
 import RelatedArticles from '@/components/article/RelatedArticles';
+import CategoryDiscovery from '@/components/article/CategoryDiscovery';
 import ArticleGallery from '@/components/article/ArticleGallery';
 import CommentSection from '@/components/comments/CommentSection'; // Added import
 
@@ -21,6 +22,7 @@ export default function ArticleDetail() {
     const { slug } = useParams();
     const [article, setArticle] = useState<Article | null>(null);
     const [related, setRelated] = useState<Article[]>([]);
+    const [categoryArticles, setCategoryArticles] = useState<Article[]>([]);
     const [loading, setLoading] = useState(true);
     const [readingProgress, setReadingProgress] = useState(0);
     const [showCopied, setShowCopied] = useState(false);
@@ -70,14 +72,24 @@ export default function ArticleDetail() {
                 const data = await articleService.getById(slug as string);
                 setArticle(data);
 
-                if (data.category_id) {
+                // Fetch data for two separate sections:
+                // 1. Explicit Related (Inline)
+                if (data.related_articles && data.related_articles.length > 0) {
+                    setRelated(data.related_articles.slice(0, 12));
+                } else if (data.category_id) {
+                    // Fallback for inline if no explicit links
                     const relatedRes = await articleService.getList({
-                        page: 1,
-                        limit: 4,
-                        category_id: data.category_id,
-                        status: 'PUBLISHED'
+                        page: 1, limit: 4, category_id: data.category_id, status: 'PUBLISHED'
                     });
                     setRelated(relatedRes.data.filter(a => a.id !== data.id));
+                }
+
+                // 2. Category Discovery (Bottom - following DiscoveryGrid style)
+                if (data.category_id) {
+                    const catRes = await articleService.getList({
+                        page: 1, limit: 6, category_id: data.category_id, status: 'PUBLISHED'
+                    });
+                    setCategoryArticles(catRes.data.filter(a => a.id !== data.id));
                 }
             } catch (error) {
                 console.error('Error fetching article:', error);
@@ -154,6 +166,11 @@ export default function ArticleDetail() {
                             }}
                         />
                         <ArticleAuthor article={article} />
+                        <RelatedArticles
+                            initialRelated={related}
+                            categoryId={article.category_id}
+                            currentArticleId={article.id}
+                        />
                         <CommentSection articleId={article.id} />
                     </div>
 
@@ -172,8 +189,14 @@ export default function ArticleDetail() {
                 </div>
             </main>
 
-            {/* Bottom Recommendation Section */}
-            <RelatedArticles related={related} />
+            {article?.category_id && (
+                <CategoryDiscovery
+                    initialArticles={categoryArticles}
+                    categoryId={article.category_id}
+                    currentArticleId={article.id}
+                    categoryName={article.category?.name}
+                />
+            )}
         </div>
     );
 }

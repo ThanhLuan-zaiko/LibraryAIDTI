@@ -32,6 +32,7 @@ export interface Article {
     }[];
     redirects?: ArticleSeoRedirect[];
     tags?: { id: string; name: string; slug: string }[];
+    related_articles?: Article[];
 }
 
 export interface SeoMetadata {
