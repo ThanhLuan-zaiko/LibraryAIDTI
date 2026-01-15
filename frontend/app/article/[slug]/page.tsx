@@ -16,7 +16,8 @@ import ArticleAuthor from '@/components/article/ArticleAuthor';
 import RelatedArticles from '@/components/article/RelatedArticles';
 import CategoryDiscovery from '@/components/article/CategoryDiscovery';
 import ArticleGallery from '@/components/article/ArticleGallery';
-import CommentSection from '@/components/comments/CommentSection'; // Added import
+import CommentSection from '@/components/comments/CommentSection';
+import StarRating from '@/components/article/StarRating';
 
 export default function ArticleDetail() {
     const { slug } = useParams();
@@ -164,6 +165,11 @@ export default function ArticleDetail() {
                                 setShowCopied(true);
                                 setTimeout(() => setShowCopied(false), 3000);
                             }}
+                        />
+                        <StarRating
+                            articleId={article.id}
+                            initialAvg={article.rating_avg}
+                            initialCount={article.rating_count}
                         />
                         <ArticleAuthor article={article} />
                         <RelatedArticles

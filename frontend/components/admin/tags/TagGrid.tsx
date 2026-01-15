@@ -4,25 +4,36 @@ import { FiEdit2, FiTrash2, FiTag, FiHash } from "react-icons/fi";
 interface TagGridProps {
     tags: Tag[];
     loading: boolean;
+    limit?: number;
     onEdit: (tag: Tag) => void;
     onDelete: (id: string) => void;
 }
 
-export default function TagGrid({ tags, loading, onEdit, onDelete }: TagGridProps) {
+export default function TagGrid({ tags, loading, limit = 12, onEdit, onDelete }: TagGridProps) {
     if (loading) {
         return (
-            <div className="py-12 flex flex-col items-center justify-center text-gray-400">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-600 mb-4"></div>
-                <p>Đang tải dữ liệu...</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {[...Array(limit)].map((_, i) => (
+                    <div key={i} className="p-4 border border-gray-100 rounded-2xl bg-gray-50/50 animate-pulse h-32 flex flex-col justify-between">
+                        <div className="w-8 h-8 bg-gray-200 rounded-lg"></div>
+                        <div>
+                            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                            <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                        </div>
+                    </div>
+                ))}
             </div>
         );
     }
 
     if (tags.length === 0) {
         return (
-            <div className="py-12 text-center text-gray-400">
-                <FiTag size={48} className="mx-auto mb-4 opacity-20" />
-                <p>Chưa có thẻ nào được tạo.</p>
+            <div className="py-20 text-center text-gray-400">
+                <div className="bg-gray-50 h-20 w-20 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <FiTag size={32} className="opacity-20" />
+                </div>
+                <p className="text-gray-500 font-medium">Không tìm thấy thẻ nào.</p>
+                <p className="text-sm mt-1">Hãy thử thay đổi từ khóa hoặc bộ lọc tìm kiếm.</p>
             </div>
         );
     }

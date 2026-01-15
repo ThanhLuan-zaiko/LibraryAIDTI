@@ -12,7 +12,7 @@ export default function TagBarChart() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const stats = await tagService.getStats();
+                const stats = await tagService.getStats(7);
                 setData(stats || []);
             } catch (error) {
                 setError("Không thể tải dữ liệu thống kê.");

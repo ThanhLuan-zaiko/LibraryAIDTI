@@ -51,10 +51,12 @@ type Article struct {
 	Redirects    []ArticleSeoRedirect `gorm:"foreignKey:ArticleID" json:"redirects"`
 	ViewCount    int                  `gorm:"default:0" json:"view_count"`    // Keep this for stats
 	CommentCount int                  `gorm:"default:0" json:"comment_count"` // Actual persisted count for performance
-	Complexity   int                  `gorm:"default:0" json:"complexity"`    // Content complexity score (0-100)
-	Depth        int                  `gorm:"default:0" json:"depth"`         // Content depth/detail score (0-100)
-	Impact       int                  `gorm:"default:0" json:"impact"`        // Reader impact/engagement score (0-100)
-	ImageURL     string               `gorm:"-" json:"image_url"`             // Alias for primary image URL
+	RatingAvg    float64              `gorm:"default:0" json:"rating_avg"`
+	RatingCount  int                  `gorm:"default:0" json:"rating_count"`
+	Complexity   int                  `gorm:"default:0" json:"complexity"` // Content complexity score (0-100)
+	Depth        int                  `gorm:"default:0" json:"depth"`      // Content depth/detail score (0-100)
+	Impact       int                  `gorm:"default:0" json:"impact"`     // Reader impact/engagement score (0-100)
+	ImageURL     string               `gorm:"-" json:"image_url"`          // Alias for primary image URL
 }
 
 func (a *Article) PopulateImageURL() {
@@ -114,6 +116,15 @@ type ArticleStatusLog struct {
 	CreatedAt time.Time     `gorm:"default:now()" json:"created_at"`
 }
 
+type ArticleRating struct {
+	ID        uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ArticleID uuid.UUID `gorm:"type:uuid;not null;index:idx_article_user_rating,unique" json:"article_id"`
+	UserID    uuid.UUID `gorm:"type:uuid;not null;index:idx_article_user_rating,unique" json:"user_id"`
+	Score     int       `gorm:"not null;check:score >= 1 AND score <= 5" json:"score"`
+	CreatedAt time.Time `gorm:"default:now()" json:"created_at"`
+	UpdatedAt time.Time `gorm:"default:now()" json:"updated_at"`
+}
+
 type SeoMetadata struct {
 	ID              uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	ArticleID       uuid.UUID `gorm:"type:uuid;unique" json:"article_id"`
@@ -162,4 +173,16 @@ type ArticleService interface {
 	GetTrendingArticles(limit int) ([]Article, error)
 	GetDiscussedArticles(limit int) ([]Article, error)
 	GetRandomArticles(limit int) ([]Article, error)
+}
+
+type RatingRepository interface {
+	Upsert(rating *ArticleRating) error
+	GetByArticleAndUser(articleID, userID string) (*ArticleRating, error)
+	GetStats(articleID string) (float64, int64, error)
+}
+
+type RatingService interface {
+	RateArticle(articleID, userID string, score int) error
+	GetRatingStats(articleID string) (float64, int64, error)
+	GetUserRating(articleID, userID string) (*ArticleRating, error)
 }

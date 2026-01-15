@@ -95,7 +95,15 @@ func (h *TagHandler) GetTag(c *gin.Context) {
 }
 
 func (h *TagHandler) GetStats(c *gin.Context) {
-	stats, err := h.service.GetTagStats()
+	limitStr := c.Query("limit")
+	limit := 20 // Default limit
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	stats, err := h.service.GetTagStats(limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

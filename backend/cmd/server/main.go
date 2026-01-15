@@ -53,6 +53,7 @@ func main() {
 		&domain.SeoMetadata{},
 		&domain.SeoRedirect{},
 		&domain.ArticleSeoRedirect{},
+		&domain.ArticleRating{},
 	)
 	if err != nil {
 		log.Fatalf("AutoMigration failed: %v", err)
@@ -110,7 +111,12 @@ func main() {
 	commentService := service.NewCommentService(commentRepo)
 	commentHandler := handler.NewCommentHandler(commentService, wsHub)
 
-	appRouter := router.NewRouter(articleHandler, categoryHandler, tagHandler, authHandler, statsHandler, dashboardHandler, userHandler, uploadHandler, seoHandler, commentHandler, wsHub, respCache)
+	// Ratings
+	ratingRepo := repository.NewRatingRepository(db.DB)
+	ratingService := service.NewRatingService(ratingRepo, articleRepo)
+	ratingHandler := handler.NewRatingHandler(ratingService)
+
+	appRouter := router.NewRouter(articleHandler, categoryHandler, tagHandler, authHandler, statsHandler, dashboardHandler, userHandler, uploadHandler, seoHandler, commentHandler, ratingHandler, wsHub, respCache)
 	appRouter.Setup(r)
 
 	// 6. Start Server

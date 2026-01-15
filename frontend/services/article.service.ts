@@ -23,6 +23,8 @@ export interface Article {
     complexity?: number;
     depth?: number;
     impact?: number;
+    rating_avg?: number;
+    rating_count?: number;
     images?: {
         id: string;
         image_url: string;
@@ -167,6 +169,16 @@ export const articleService = {
 
     async getRelations(id: string): Promise<ArticleRelationDetail> {
         const response = await apiClient.get<ArticleRelationDetail>(`${ARTICLES_URL}/${id}/relations`);
+        return response.data;
+    },
+
+    async rateArticle(id: string, score: number) {
+        const response = await apiClient.post(`${ARTICLES_URL}/${id}/rate`, { score });
+        return response.data;
+    },
+
+    async getArticleRating(id: string) {
+        const response = await apiClient.get<{ average: number; count: number; user_rating: number | null }>(`${ARTICLES_URL}/${id}/rating`);
         return response.data;
     }
 };

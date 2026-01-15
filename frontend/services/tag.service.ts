@@ -46,8 +46,10 @@ export const tagService = {
         return response.data;
     },
 
-    async getStats() {
-        const response = await apiClient.get<TagStats[]>(`${TAGS_URL}/stats`);
+    async getStats(limit?: number) {
+        const response = await apiClient.get<TagStats[]>(`${TAGS_URL}/stats`, {
+            params: { limit }
+        });
         return response.data;
     },
 

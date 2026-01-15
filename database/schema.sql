@@ -235,7 +235,20 @@ CREATE TABLE article_views (
 CREATE TABLE article_stats (
     article_id UUID PRIMARY KEY REFERENCES articles(id) ON DELETE CASCADE,
     view_count BIGINT DEFAULT 0,
+    comment_count BIGINT DEFAULT 0,
+    rating_avg NUMERIC(3,2) DEFAULT 0,
+    rating_count BIGINT DEFAULT 0,
     share_count BIGINT DEFAULT 0
+);
+
+CREATE TABLE article_ratings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    article_id UUID REFERENCES articles(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    score INT NOT NULL CHECK (score >= 1 AND score <= 5),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE (article_id, user_id)
 );
 
 CREATE TABLE audit_logs (
@@ -282,43 +295,64 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm; -- For fuzzy search and better text inde
 
 -- 2. Performance Indexes
 -- Foreign Keys (PostgreSQL does not index FKs by default)
+-- Note: Indexes on the first column of a multi-column PK/UNIQUE constraint are redundant.
+
+-- Users & Sessions
 CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
-CREATE INDEX idx_role_permissions_role_id ON role_permissions(role_id);
-CREATE INDEX idx_role_permissions_permission_id ON role_permissions(permission_id);
-CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
 CREATE INDEX idx_user_roles_role_id ON user_roles(role_id);
+CREATE INDEX idx_user_roles_assigned_by ON user_roles(assigned_by_id);
+
+-- Roles & Permissions
+CREATE INDEX idx_role_permissions_permission_id ON role_permissions(permission_id);
+
+-- Categories
 CREATE INDEX idx_categories_parent_id ON categories(parent_id);
+
+-- Articles & Content
 CREATE INDEX idx_articles_author_id ON articles(author_id);
 CREATE INDEX idx_articles_category_id ON articles(category_id);
 CREATE INDEX idx_article_images_article_id ON article_images(article_id);
+CREATE INDEX idx_article_images_is_primary ON article_images(is_primary) WHERE is_primary = true;
 CREATE INDEX idx_article_versions_article_id ON article_versions(article_id);
+CREATE INDEX idx_article_versions_created_by ON article_versions(created_by);
 CREATE INDEX idx_article_status_logs_article_id ON article_status_logs(article_id);
-CREATE INDEX idx_article_tags_article_id ON article_tags(article_id);
+CREATE INDEX idx_article_status_logs_changed_by ON article_status_logs(changed_by);
 CREATE INDEX idx_article_tags_tag_id ON article_tags(tag_id);
-CREATE INDEX idx_article_relations_article_id ON article_relations(article_id);
 CREATE INDEX idx_article_relations_related_id ON article_relations(related_article_id);
+
+-- Comments
 CREATE INDEX idx_comments_article_id ON comments(article_id);
 CREATE INDEX idx_comments_user_id ON comments(user_id);
 CREATE INDEX idx_comments_parent_id ON comments(parent_id);
+-- Composite for loading article comments (most recent first)
+CREATE INDEX idx_comments_article_recent ON comments(article_id, created_at DESC);
+
+-- Media
 CREATE INDEX idx_media_files_uploaded_by ON media_files(uploaded_by);
-CREATE INDEX idx_article_media_article_id ON article_media(article_id);
+CREATE INDEX idx_media_file_versions_media_file_id ON media_file_versions(media_file_id);
+CREATE INDEX idx_media_file_versions_uploaded_by ON media_file_versions(uploaded_by);
 CREATE INDEX idx_article_media_media_id ON article_media(media_id);
+CREATE INDEX idx_article_media_versions_article_media_id ON article_media_versions(article_media_id);
+CREATE INDEX idx_article_media_versions_article_id ON article_media_versions(article_id);
+CREATE INDEX idx_article_media_versions_media_id ON article_media_versions(media_id);
+
+-- Analytics & Logs
 CREATE INDEX idx_article_views_article_id ON article_views(article_id);
-CREATE INDEX idx_article_comments_article_id ON article_comments(article_id);
+CREATE INDEX idx_article_views_viewed_at ON article_views(viewed_at);
 CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX idx_system_logs_user_id ON system_logs(user_id);
 
 -- Common Search & Filter Fields
 CREATE INDEX idx_users_is_active ON users(is_active);
 CREATE INDEX idx_articles_status ON articles(status);
-CREATE INDEX idx_articles_is_featured ON articles(is_featured) WHERE is_featured = true;
-CREATE INDEX idx_articles_published_at ON articles(published_at) WHERE status = 'PUBLISHED';
-CREATE INDEX idx_articles_slug ON articles(slug);
-CREATE INDEX idx_categories_slug ON categories(slug);
+CREATE INDEX idx_articles_featured ON articles(is_featured) WHERE is_featured = true;
+-- Optimized index for article listings (published, ordered by date)
+CREATE INDEX idx_articles_cat_status_pub ON articles(category_id, status, published_at DESC) WHERE status = 'PUBLISHED';
+-- Note: idx_articles_slug and idx_categories_slug removed as they are covered by UNIQUE constraints.
 
 -- Full Text Search Indexes (GIN)
 CREATE INDEX idx_articles_title_trgm ON articles USING gin (title gin_trgm_ops);
-CREATE INDEX idx_articles_content_search ON articles USING gin (to_tsvector('english', content)); -- Adjust language as needed
+CREATE INDEX idx_articles_content_search ON articles USING gin (to_tsvector('english', content));
 
 -- JSONB Indexes for High-Performance Logging Query
 CREATE INDEX idx_audit_logs_old_data ON audit_logs USING gin (old_data);
@@ -334,7 +368,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Applying triggers to tables with updated_at
+-- Applying triggers to tables with updated_at column
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
@@ -350,13 +384,8 @@ CREATE TRIGGER update_comments_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_comment_replies_updated_at
-    BEFORE UPDATE ON comment_replies
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_article_comments_updated_at
-    BEFORE UPDATE ON article_comments
+CREATE TRIGGER update_article_ratings_updated_at
+    BEFORE UPDATE ON article_ratings
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 

@@ -62,7 +62,7 @@ func (r *categoryRepository) GetBySlug(slug string) (*domain.Category, error) {
 }
 
 func (r *categoryRepository) GetStats() ([]domain.CategoryStats, error) {
-	var stats []domain.CategoryStats
+	stats := []domain.CategoryStats{}
 	// Count articles per category
 	err := r.db.Table("categories").
 		Select("categories.id, categories.name, count(articles.id) as article_count").

@@ -93,15 +93,15 @@ func (r *tagRepository) GetList(page, limit int, search, sortBy, order string) (
 	}, nil
 }
 
-func (r *tagRepository) GetStats() ([]domain.TagStats, error) {
-	var stats []domain.TagStats
+func (r *tagRepository) GetStats(limit int) ([]domain.TagStats, error) {
+	stats := []domain.TagStats{}
 	// Count usage in article_tags
 	err := r.db.Table("tags").
 		Select("tags.id, tags.name, tags.slug, count(article_tags.article_id) as usage_count").
 		Joins("LEFT JOIN article_tags ON article_tags.tag_id = tags.id").
 		Group("tags.id, tags.name, tags.slug").
 		Order("usage_count DESC").
-		Limit(20). // Top 20 tags
+		Limit(limit).
 		Scan(&stats).Error
 	return stats, err
 }

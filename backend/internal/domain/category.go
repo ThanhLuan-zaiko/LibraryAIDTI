@@ -56,7 +56,7 @@ type TagRepository interface {
 	GetByID(id uuid.UUID) (*Tag, error)
 	GetBySlug(slug string) (*Tag, error)
 	GetList(page, limit int, search, sortBy, order string) (*PaginatedResult[Tag], error)
-	GetStats() ([]TagStats, error)
+	GetStats(limit int) ([]TagStats, error)
 	Update(tag *Tag) error
 	Delete(id uuid.UUID) error
 }
@@ -79,7 +79,7 @@ type TagService interface {
 	GetTagByID(id uuid.UUID) (*Tag, error)
 	GetTagBySlug(slug string) (*Tag, error)
 	GetTagList(page, limit int, search, sortBy, order string) (*PaginatedResult[Tag], error)
-	GetTagStats() ([]TagStats, error)
+	GetTagStats(limit int) ([]TagStats, error)
 	UpdateTag(tag *Tag) error
 	DeleteTag(id uuid.UUID) error
 }

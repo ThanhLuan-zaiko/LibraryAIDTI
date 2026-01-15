@@ -49,8 +49,8 @@ func (s *tagService) GetTagList(page, limit int, search, sortBy, order string) (
 	return s.repo.GetList(page, limit, search, sortBy, order)
 }
 
-func (s *tagService) GetTagStats() ([]domain.TagStats, error) {
-	return s.repo.GetStats()
+func (s *tagService) GetTagStats(limit int) ([]domain.TagStats, error) {
+	return s.repo.GetStats(limit)
 }
 
 func (s *tagService) UpdateTag(tag *domain.Tag) error {

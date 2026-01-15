@@ -18,8 +18,8 @@ const TopicCloud: React.FC = () => {
                     categoryService.getStats(),
                     tagService.getStats()
                 ]);
-                setCategories(catStats.slice(0, 8)); // Top 8 categories
-                setTags(tagStats.slice(0, 15));      // Top 15 tags
+                setCategories((catStats ?? []).slice(0, 8)); // Top 8 categories
+                setTags((tagStats ?? []).slice(0, 15));      // Top 15 tags
             } catch (error) {
                 console.error('Failed to fetch topics:', error);
             } finally {

@@ -23,6 +23,7 @@ type Router struct {
 	uploadHandler    *handler.UploadHandler
 	seoHandler       *handler.SeoHandler
 	commentHandler   *handler.CommentHandler // Added
+	ratingHandler    *handler.RatingHandler  // Added
 	userRepo         domain.UserRepository
 	wsHub            *ws.Hub
 	cache            *middleware.ResponseCache
@@ -39,6 +40,7 @@ func NewRouter(
 	uploadHandler *handler.UploadHandler,
 	seoHandler *handler.SeoHandler,
 	commentHandler *handler.CommentHandler, // Added
+	ratingHandler *handler.RatingHandler, // Added
 	wsHub *ws.Hub,
 	cache *middleware.ResponseCache,
 ) *Router {
@@ -53,6 +55,7 @@ func NewRouter(
 		uploadHandler:    uploadHandler,
 		seoHandler:       seoHandler,
 		commentHandler:   commentHandler, // Added
+		ratingHandler:    ratingHandler,  // Added
 		userRepo:         userHandler.GetService().GetRepo(),
 		wsHub:            wsHub,
 		cache:            cache,
@@ -121,6 +124,7 @@ func (r *Router) Setup(engine *gin.Engine) {
 			// Public Comment Routes (Read-only)
 			articles.GET("/:id/comments", r.commentHandler.GetComments)
 			articles.GET("/:id/comments/:commentId/replies", r.commentHandler.GetReplies)
+			articles.GET("/:id/rating", r.ratingHandler.GetRating)
 		}
 
 		// Stats routes
@@ -202,6 +206,7 @@ func (r *Router) Setup(engine *gin.Engine) {
 				articles.PUT("/:id/status", r.articleHandler.ChangeStatus)
 				articles.POST("/:id/redirects", r.articleHandler.AddRedirect)
 				articles.DELETE("/:id/redirects/:redirectId", r.articleHandler.DeleteRedirect)
+				articles.POST("/:id/rate", r.ratingHandler.RateArticle)
 			}
 
 			protected.GET("/roles", r.userHandler.GetRoles)
