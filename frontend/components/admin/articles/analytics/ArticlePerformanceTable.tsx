@@ -3,7 +3,7 @@
 import React from 'react';
 import { Article } from '@/services/article.service';
 import { getImageUrl } from '@/utils/image';
-import { FiEye, FiBarChart2, FiArrowUpRight, FiSearch } from 'react-icons/fi';
+import { FiEye, FiBarChart2, FiArrowUpRight, FiSearch, FiMessageSquare } from 'react-icons/fi';
 import Link from 'next/link';
 
 interface ArticlePerformanceTableProps {
@@ -11,15 +11,22 @@ interface ArticlePerformanceTableProps {
 }
 
 const ArticlePerformanceTable: React.FC<ArticlePerformanceTableProps> = ({ articles }) => {
+    // Sort articles by engagement (views + comments) descending
+    const sortedArticles = [...articles].sort((a, b) => {
+        const engagementA = a.view_count + (a.comment_count || 0);
+        const engagementB = b.view_count + (b.comment_count || 0);
+        return engagementB - engagementA;
+    });
+
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2">
                     <FiBarChart2 className="text-indigo-600" />
-                    Hiệu suất Chi tiết bài viết
+                    Phân tích Hiệu suất Bài viết
                 </h3>
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full uppercase">Top 5 Bài viết</span>
+                    <span className="text-[10px] font-bold px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full uppercase">Top 5 Bài viết Hiệu suất nhất</span>
                 </div>
             </div>
 
@@ -29,12 +36,13 @@ const ArticlePerformanceTable: React.FC<ArticlePerformanceTableProps> = ({ artic
                         <tr className="border-b border-gray-50">
                             <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Nội dung</th>
                             <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Lượt xem</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Bình luận</th>
                             <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Xu hướng</th>
                             <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Hành động</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                        {articles.map((article) => (
+                        {sortedArticles.map((article) => (
                             <tr key={article.id} className="hover:bg-blue-50/30 transition-colors group">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-4">
@@ -64,6 +72,12 @@ const ArticlePerformanceTable: React.FC<ArticlePerformanceTableProps> = ({ artic
                                     <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full">
                                         <FiEye className="w-3 h-3" />
                                         <span className="text-xs font-black">{article.view_count.toLocaleString()}</span>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 text-purple-700 rounded-full">
+                                        <FiMessageSquare className="w-3 h-3" />
+                                        <span className="text-xs font-black">{(article.comment_count || 0).toLocaleString()}</span>
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-center">

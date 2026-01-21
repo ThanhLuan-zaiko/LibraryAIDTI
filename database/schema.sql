@@ -233,14 +233,6 @@ CREATE TABLE article_views (
     viewed_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE article_stats (
-    article_id UUID PRIMARY KEY REFERENCES articles(id) ON DELETE CASCADE,
-    view_count BIGINT DEFAULT 0,
-    comment_count BIGINT DEFAULT 0,
-    rating_avg NUMERIC(3,2) DEFAULT 0,
-    rating_count BIGINT DEFAULT 0,
-    share_count BIGINT DEFAULT 0
-);
 
 CREATE TABLE article_ratings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

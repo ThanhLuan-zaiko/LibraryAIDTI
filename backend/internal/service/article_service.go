@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
 )
 
 type articleService struct {
@@ -20,6 +21,7 @@ type articleService struct {
 	seoService     domain.SeoService
 	imageProcessor *utils.ImageProcessor
 	hub            *ws.Hub // Directly using Hub for simplicity
+	sfGroup        singleflight.Group
 }
 
 func NewArticleService(repo domain.ArticleRepository, mediaRepo domain.MediaRepository, auditRepo domain.AuditRepository, seoService domain.SeoService, hub *ws.Hub) domain.ArticleService {
@@ -116,29 +118,45 @@ func (s *articleService) GetArticles(page, limit int, filter map[string]interfac
 }
 
 func (s *articleService) GetArticleByID(id uuid.UUID) (*domain.Article, error) {
-	article, err := s.repo.GetByID(id)
+	key := fmt.Sprintf("get_article_by_id_%s", id.String())
+	v, err, _ := s.sfGroup.Do(key, func() (interface{}, error) {
+		article, err := s.repo.GetByID(id)
+		if err != nil {
+			return nil, err
+		}
+		if article != nil {
+			s.calculateArticleMetrics(article)
+		}
+		return article, nil
+	})
+
 	if err != nil {
 		return nil, err
 	}
-	if article != nil {
-		s.calculateArticleMetrics(article)
-	}
-	return article, nil
+	return v.(*domain.Article), nil
 }
 
 func (s *articleService) GetArticleBySlug(slug string) (*domain.Article, error) {
-	article, err := s.repo.GetBySlug(slug)
+	key := fmt.Sprintf("get_article_by_slug_%s", slug)
+	v, err, _ := s.sfGroup.Do(key, func() (interface{}, error) {
+		article, err := s.repo.GetBySlug(slug)
+		if err != nil {
+			return nil, err
+		}
+		if article != nil {
+			s.calculateArticleMetrics(article)
+		}
+		return article, nil
+	})
+
 	if err != nil {
 		return nil, err
 	}
-	if article != nil {
-		s.calculateArticleMetrics(article)
-	}
-	return article, nil
+	return v.(*domain.Article), nil
 }
 
 func (s *articleService) UpdateArticle(article *domain.Article) error {
-	existing, err := s.repo.GetByID(article.ID)
+	existing, err := s.repo.GetByIDFull(article.ID)
 	if err != nil {
 		return err
 	}
@@ -284,7 +302,7 @@ func (s *articleService) ensureSEOMetadata(article *domain.Article) {
 
 func (s *articleService) DeleteArticle(id uuid.UUID) error {
 	// Get article with media to cleanup
-	article, err := s.repo.GetByID(id)
+	article, err := s.repo.GetByIDFull(id)
 	if err == nil && article != nil {
 		fmt.Printf("Cleaning up files for article: %s\n", id)
 
@@ -312,7 +330,7 @@ func (s *articleService) DeleteArticle(id uuid.UUID) error {
 }
 
 func (s *articleService) ChangeStatus(id uuid.UUID, newStatus domain.ArticleStatus, changedBy uuid.UUID, note string) error {
-	article, err := s.repo.GetByID(id)
+	article, err := s.repo.GetByIDFull(id)
 	if err != nil {
 		return err
 	}
@@ -365,7 +383,7 @@ func (s *articleService) broadcastEvent(eventType string, payload interface{}) {
 }
 
 func (s *articleService) CreateArticleRedirect(articleID uuid.UUID, fromSlug string) error {
-	article, err := s.repo.GetByID(articleID)
+	article, err := s.repo.GetByIDFull(articleID)
 	if err != nil {
 		return err
 	}

@@ -89,7 +89,24 @@ func (r *articleRepository) GetAll(offset, limit int, filter map[string]interfac
 		return nil, 0, err
 	}
 
-	if err := query.Offset(offset).Limit(limit).Order("articles.created_at DESC").Find(&articles).Error; err != nil {
+	// Handle Sorting
+	order := "articles.created_at DESC"
+	if sort, ok := filter["sort"]; ok && sort != "" {
+		switch sort.(string) {
+		case "engagement":
+			order = "(articles.view_count + articles.comment_count) DESC"
+		case "views":
+			order = "articles.view_count DESC"
+		case "comments":
+			order = "articles.comment_count DESC"
+		case "newest":
+			order = "articles.created_at DESC"
+		case "oldest":
+			order = "articles.created_at ASC"
+		}
+	}
+
+	if err := query.Offset(offset).Limit(limit).Order(order).Find(&articles).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -101,8 +118,16 @@ func (r *articleRepository) GetAll(offset, limit int, filter map[string]interfac
 }
 
 func (r *articleRepository) GetByID(id uuid.UUID) (*domain.Article, error) {
+	return r.getByID(id, false)
+}
+
+func (r *articleRepository) GetByIDFull(id uuid.UUID) (*domain.Article, error) {
+	return r.getByID(id, true)
+}
+
+func (r *articleRepository) getByID(id uuid.UUID, full bool) (*domain.Article, error) {
 	var article domain.Article
-	err := r.db.Preload("Category").
+	query := r.db.Preload("Category").
 		Preload("Author").
 		Preload("Tags").
 		Preload("Images").
@@ -111,10 +136,13 @@ func (r *articleRepository) GetByID(id uuid.UUID) (*domain.Article, error) {
 		Preload("Redirects").
 		Preload("Related.Images").
 		Preload("Related.Author").
-		Preload("Related.Category").
-		Preload("Versions").
-		Preload("StatusLogs").
-		First(&article, "id = ?", id).Error
+		Preload("Related.Category")
+
+	if full {
+		query = query.Preload("Versions").Preload("StatusLogs")
+	}
+
+	err := query.First(&article, "id = ?", id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -137,8 +165,6 @@ func (r *articleRepository) GetBySlug(slug string) (*domain.Article, error) {
 		Preload("Related.Images").
 		Preload("Related.Author").
 		Preload("Related.Category").
-		Preload("Versions").
-		Preload("StatusLogs").
 		First(&article, "slug = ?", slug).Error
 	if err != nil {
 		return nil, err
@@ -229,9 +255,6 @@ func (r *articleRepository) Delete(id uuid.UUID) error {
 			return err
 		}
 		if err := tx.Exec("DELETE FROM article_views WHERE article_id = ?", id).Error; err != nil {
-			return err
-		}
-		if err := tx.Exec("DELETE FROM article_stats WHERE article_id = ?", id).Error; err != nil {
 			return err
 		}
 

@@ -105,7 +105,11 @@ func (r *Router) Setup(engine *gin.Engine) {
 	})
 
 	v1 := engine.Group("/api/v1")
-	v1.Use(middleware.GlobalRateLimitMiddleware())
+	// 1. Protection from massive payloads (5MB limit for regular API calls)
+	v1.Use(middleware.RequestSizeMiddleware(5 * 1024 * 1024))
+	// 2. Global rate limiting - 30 req/sec, burst 60
+	v1.Use(middleware.RateLimitMiddleware(rate.Limit(30.0), 60))
+	// 3. Request Timeout
 	v1.Use(middleware.TimeoutMiddleware(time.Second * 30))
 	{
 		// Auth routes

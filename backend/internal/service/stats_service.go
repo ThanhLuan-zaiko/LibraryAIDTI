@@ -56,13 +56,5 @@ func (s *statsService) GetDashboardData() (*domain.DashboardData, error) {
 }
 
 func (s *statsService) GetPublicStats() (*domain.PublicStats, error) {
-	stats, err := s.repo.GetAdminStats()
-	if err != nil {
-		return nil, err
-	}
-	return &domain.PublicStats{
-		TotalArticles:   stats.TotalArticles,
-		TotalReaders:    stats.TotalReaders,
-		TotalCategories: stats.TotalCategories,
-	}, nil
+	return s.repo.GetPublicStats()
 }

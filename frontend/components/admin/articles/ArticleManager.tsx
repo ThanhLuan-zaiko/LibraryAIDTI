@@ -165,6 +165,7 @@ const ArticleManager = () => {
                                         <th className="px-6 py-4 text-sm font-bold text-gray-700 uppercase tracking-wider text-center">Nổi bật</th>
                                         <th className="px-6 py-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Trạng thái</th>
                                         <th className="px-6 py-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Lượt xem</th>
+                                        <th className="px-6 py-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Bình luận</th>
                                         <th className="px-6 py-4 text-sm font-bold text-gray-700 uppercase tracking-wider">Ngày tạo</th>
                                         <th className="px-6 py-4 text-sm font-bold text-gray-700 uppercase tracking-wider text-right">Thao tác</th>
                                     </tr>
@@ -172,7 +173,7 @@ const ArticleManager = () => {
                                 <tbody className="divide-y divide-gray-200">
                                     {loading ? (
                                         <tr>
-                                            <td colSpan={9} className="px-6 py-24 text-center">
+                                            <td colSpan={10} className="px-6 py-24 text-center">
                                                 <div className="flex flex-col items-center gap-2">
                                                     <div className="w-10 h-10 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
                                                     <p className="text-sm font-bold text-gray-400">Đang tải dữ liệu...</p>
@@ -181,7 +182,7 @@ const ArticleManager = () => {
                                         </tr>
                                     ) : articles.length === 0 ? (
                                         <tr>
-                                            <td colSpan={9} className="px-6 py-24 text-center">
+                                            <td colSpan={10} className="px-6 py-24 text-center">
                                                 <div className="flex flex-col items-center gap-2">
                                                     <HiOutlineDocumentText className="w-12 h-12 text-gray-200" />
                                                     <p className="text-sm font-bold text-gray-400">Không tìm thấy bài viết nào.</p>
@@ -235,6 +236,7 @@ const ArticleManager = () => {
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-sm font-bold text-blue-600">{article.view_count.toLocaleString('vi-VN')}</td>
+                                                <td className="px-6 py-4 text-sm font-bold text-purple-600">{(article.comment_count || 0).toLocaleString('vi-VN')}</td>
                                                 <td className="px-6 py-4 text-sm text-gray-500">{new Date(article.created_at).toLocaleDateString('vi-VN')}</td>
                                                 <td className="px-6 py-4 text-right space-x-2">
                                                     <button onClick={() => router.push(`/admin/articles/${article.id}/edit`)} className="text-amber-600 hover:text-amber-800 p-1 transition-colors"><HiPencil className="w-5 h-5" /></button>

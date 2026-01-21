@@ -75,11 +75,26 @@ export default function ArticleDetail() {
         setToc(extractedToc);
     }, [article?.content]);
 
+    const [error, setError] = useState<{ code?: number; message?: string } | null>(null);
+
     useEffect(() => {
+        let isCurrent = true;
+        const controller = new AbortController();
+
         const fetchArticle = async () => {
             try {
                 setLoading(true);
-                const data = await articleService.getById(slug as string);
+                setError(null);
+                const data = await articleService.getById(slug as string, controller.signal);
+
+                if (!isCurrent) return;
+
+                if (!data) {
+                    setArticle(null);
+                    setLoading(false);
+                    return;
+                }
+
                 setArticle(data);
 
                 // Fetch data for two separate sections:
@@ -90,25 +105,31 @@ export default function ArticleDetail() {
                     // Fallback for inline if no explicit links
                     const relatedRes = await articleService.getList({
                         page: 1, limit: 4, category_id: data.category_id, status: 'PUBLISHED'
-                    });
-                    setRelated(relatedRes.data.filter(a => a.id !== data.id));
+                    }, controller.signal);
+                    if (isCurrent) setRelated(relatedRes.data.filter(a => a.id !== data.id));
                 }
 
-                // 2. Category Discovery (Bottom - following DiscoveryGrid style)
-                if (data.category_id) {
-                    const catRes = await articleService.getList({
-                        page: 1, limit: 6, category_id: data.category_id, status: 'PUBLISHED'
+                if (isCurrent) setLoading(false);
+            } catch (err: any) {
+                if (err.name === 'CanceledError' || err.name === 'AbortError') return;
+
+                if (isCurrent) {
+                    const status = err.response?.status;
+                    setError({
+                        code: status,
+                        message: status === 429 ? 'Hệ thống đang bận do có quá nhiều yêu cầu. Vui lòng chờ vài giây rồi thử lại.' : 'Đã có lỗi xảy ra khi tải bài viết.'
                     });
-                    setCategoryArticles(catRes.data.filter(a => a.id !== data.id));
+                    setLoading(false);
                 }
-            } catch (error) {
-                console.error('Error fetching article:', error);
-            } finally {
-                setLoading(false);
             }
         };
 
         if (slug) fetchArticle();
+
+        return () => {
+            isCurrent = false;
+            controller.abort();
+        };
     }, [slug]);
 
     useEffect(() => {
@@ -125,6 +146,25 @@ export default function ArticleDetail() {
     }, []);
 
     if (loading) return <ArticleLoading />;
+
+    if (error) {
+        return (
+            <div className="container mx-auto px-6 py-40 text-center">
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-amber-50 text-amber-500 mb-8 shadow-inner">
+                    <span className="text-4xl">⏳</span>
+                </div>
+                <h2 className="text-3xl font-black text-gray-900 mb-4">{error.code === 429 ? 'Quá nhiều yêu cầu' : 'Đã có lỗi xảy ra'}</h2>
+                <p className="text-gray-500 mb-10 max-w-md mx-auto font-medium">{error.message}</p>
+                <button
+                    onClick={() => window.location.reload()}
+                    className="px-10 py-4 bg-gray-900 text-white font-black rounded-2xl hover:bg-blue-600 transition-all shadow-xl hover:shadow-blue-200"
+                >
+                    Tải lại trang
+                </button>
+            </div>
+        );
+    }
+
     if (!article) return <ArticleNotFound />;
 
     const getDateString = () => {

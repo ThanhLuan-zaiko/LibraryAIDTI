@@ -30,7 +30,7 @@ const ArticleAnalytics = () => {
                 const [dashRes, analyticsRes, articlesRes, advRes] = await Promise.all([
                     getDashboardData(),
                     dashboardService.getAnalytics(),
-                    articleService.getList({ page: 1, limit: 5, status: 'PUBLISHED' }),
+                    articleService.getList({ page: 1, limit: 5, status: 'PUBLISHED', sort: 'engagement' }),
                     dashboardService.getAdvancedAnalytics()
                 ]);
                 setData(dashRes);

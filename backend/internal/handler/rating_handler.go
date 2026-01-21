@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"backend/internal/core/response"
 	"backend/internal/domain"
 	"net/http"
 
@@ -63,7 +64,7 @@ func (h *RatingHandler) GetRating(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response.Success(c, gin.H{
 		"average":     avg,
 		"count":       count,
 		"user_rating": userRating,

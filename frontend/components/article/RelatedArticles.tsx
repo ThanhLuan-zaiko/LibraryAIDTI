@@ -23,7 +23,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({ initialRelated, categ
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
 
-    const fetchMore = useCallback(async () => {
+    const fetchMore = useCallback(async (signal?: AbortSignal) => {
         if (loading || !hasMore || articles.length >= MAX_RELATED_ITEMS || !categoryId) return;
 
         setLoading(true);
@@ -34,7 +34,7 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({ initialRelated, categ
                 limit: 6,
                 category_id: categoryId,
                 status: 'PUBLISHED'
-            });
+            }, signal);
 
             const newArticles = res.data.filter((a: Article) =>
                 a.id !== currentArticleId && !articles.some(existing => existing.id === a.id)
@@ -46,7 +46,8 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({ initialRelated, categ
 
             setArticles(prev => [...prev, ...newArticles].slice(0, MAX_RELATED_ITEMS));
             setPage(nextPage);
-        } catch (error) {
+        } catch (error: any) {
+            if (error.name === 'CanceledError' || error.name === 'AbortError') return;
             console.error('Failed to fetch more related articles:', error);
             setHasMore(false);
         } finally {
@@ -54,21 +55,32 @@ const RelatedArticles: React.FC<RelatedArticlesProps> = ({ initialRelated, categ
         }
     }, [loading, hasMore, articles, page, categoryId, currentArticleId]);
 
+    // Stable fetch function for observer
+    const loadMore = useCallback(() => {
+        if (loading || !hasMore || articles.length >= MAX_RELATED_ITEMS || !categoryId) return;
+        fetchMore();
+    }, [fetchMore, loading, hasMore, articles.length, categoryId]);
+
     useEffect(() => {
         if (!hasMore || articles.length >= MAX_RELATED_ITEMS || !categoryId) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    fetchMore();
+                    loadMore();
                 }
             },
-            { root: scrollContainerRef.current, threshold: 0.1, rootMargin: '0px 200px 0px 0px' }
+            { root: scrollContainerRef.current, threshold: 0.1, rootMargin: '0px 300px 0px 0px' }
         );
 
-        if (loadMoreTriggerRef.current) observer.observe(loadMoreTriggerRef.current);
-        return () => observer.disconnect();
-    }, [fetchMore, hasMore, articles.length, categoryId]);
+        const currentTrigger = loadMoreTriggerRef.current;
+        if (currentTrigger) observer.observe(currentTrigger);
+
+        return () => {
+            if (currentTrigger) observer.unobserve(currentTrigger);
+            observer.disconnect();
+        };
+    }, [loadMore, hasMore, articles.length, categoryId]);
 
     return (
         <section className="bg-white py-16 relative overflow-hidden border-t border-gray-50">

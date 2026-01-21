@@ -246,6 +246,17 @@ func (h *ArticleHandler) GetArticles(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 
+	// 1. Protection from abusive limits
+	if limit > 100 {
+		limit = 100
+	}
+	if limit < 1 {
+		limit = 1
+	}
+	if page < 1 {
+		page = 1
+	}
+
 	filter := make(map[string]interface{})
 	if status := c.Query("status"); status != "" {
 		filter["status"] = status
@@ -258,6 +269,9 @@ func (h *ArticleHandler) GetArticles(c *gin.Context) {
 	}
 	if minimal := c.Query("minimal"); minimal == "true" {
 		filter["minimal"] = true
+	}
+	if sort := c.Query("sort"); sort != "" {
+		filter["sort"] = sort
 	}
 
 	articles, total, err := h.service.GetArticles(page, limit, filter)
@@ -275,6 +289,13 @@ func (h *ArticleHandler) GetArticles(c *gin.Context) {
 
 func (h *ArticleHandler) GetArticle(c *gin.Context) {
 	idStr := c.Param("id")
+
+	// 2. Protect from extremely long IDs/slugs
+	if len(idStr) > 255 {
+		c.Error(apperrors.NewBadRequest("Định danh quá dài"))
+		return
+	}
+
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		// Try slug if not UUID
@@ -624,7 +645,7 @@ func (h *ArticleHandler) GetArticleRelations(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response.Success(c, gin.H{
 		"incoming_articles": incoming,
 		"outgoing_articles": outgoing,
 	})
@@ -640,9 +661,7 @@ func (h *ArticleHandler) GetTrending(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": articles,
-	})
+	response.Success(c, articles)
 }
 
 // GetDiscussed returns articles ordered by comment count
@@ -655,9 +674,7 @@ func (h *ArticleHandler) GetDiscussed(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": articles,
-	})
+	response.Success(c, articles)
 }
 
 // GetRandom returns random articles for discovery
@@ -681,7 +698,5 @@ func (h *ArticleHandler) GetRandom(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": articles,
-	})
+	response.Success(c, articles)
 }

@@ -33,7 +33,7 @@ const CategoryDiscovery: React.FC<CategoryDiscoveryProps> = ({
 
     const isLoadingRef = useRef(false);
 
-    const fetchMore = useCallback(async (isInitial = false) => {
+    const fetchMore = useCallback(async (isInitial = false, signal?: AbortSignal) => {
         if (!hasMore || articles.length >= MAX_CATEGORY_ITEMS) return;
         if (isLoadingRef.current) return;
 
@@ -52,7 +52,7 @@ const CategoryDiscovery: React.FC<CategoryDiscoveryProps> = ({
                     limit: 6,
                     category_id: categoryId,
                     status: 'PUBLISHED'
-                });
+                }, signal);
 
                 newArticles = res.data.filter((a: Article) =>
                     a.id !== currentArticleId && !articles.some(existing => existing.id === a.id)
@@ -61,7 +61,7 @@ const CategoryDiscovery: React.FC<CategoryDiscoveryProps> = ({
                 if (newArticles.length === 0 || res.data.length < 6) {
                     if (articles.length + newArticles.length < 3) {
                         const excludeIds = articles.map(a => a.id);
-                        const randomRes = await articleService.getRandom(6, excludeIds);
+                        const randomRes = await articleService.getRandom(6, excludeIds, signal);
                         const randomArticles = randomRes.data.filter((a: Article) =>
                             a.id !== currentArticleId &&
                             !articles.some(existing => existing.id === a.id) &&
@@ -77,7 +77,7 @@ const CategoryDiscovery: React.FC<CategoryDiscoveryProps> = ({
                 setPage(nextPage);
             } else {
                 const excludeIds = articles.map(a => a.id);
-                const res = await articleService.getRandom(6, excludeIds);
+                const res = await articleService.getRandom(6, excludeIds, signal);
                 newArticles = res.data.filter((a: Article) =>
                     a.id !== currentArticleId && !articles.some(existing => existing.id === a.id)
                 );
@@ -99,7 +99,8 @@ const CategoryDiscovery: React.FC<CategoryDiscoveryProps> = ({
                 setHasMore(false);
             }
 
-        } catch (error) {
+        } catch (error: any) {
+            if (error.name === 'CanceledError' || error.name === 'AbortError') return;
             console.error('Failed to load category discovery content:', error);
             setHasMore(false);
         } finally {
@@ -109,28 +110,40 @@ const CategoryDiscovery: React.FC<CategoryDiscoveryProps> = ({
         }
     }, [hasMore, articles, page, categoryId, currentArticleId, isFallback]);
 
-    // Initial load if needed
+    // Stable fetch function for observer
+    const loadMore = useCallback(() => {
+        if (!hasMore || articles.length >= MAX_CATEGORY_ITEMS || loading || fetchingMore || isLoadingRef.current) return;
+        fetchMore(false);
+    }, [fetchMore, hasMore, articles.length, loading, fetchingMore]);
+
+    // Initial load
     useEffect(() => {
         if (initialArticles.length === 0) {
             fetchMore(true);
         }
-    }, [initialArticles.length, fetchMore]);
+    }, [categoryId, currentArticleId]); // Only re-run if article context changes
 
+    // Intersection Observer for infinite scroll
     useEffect(() => {
-        if (!hasMore || articles.length >= MAX_CATEGORY_ITEMS || loading || fetchingMore) return;
+        if (!hasMore || articles.length >= MAX_CATEGORY_ITEMS) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    fetchMore();
+                    loadMore();
                 }
             },
-            { root: scrollContainerRef.current, threshold: 0.1, rootMargin: '0px 200px 0px 0px' }
+            { root: scrollContainerRef.current, threshold: 0.1, rootMargin: '0px 300px 0px 0px' }
         );
 
-        if (loadMoreTriggerRef.current) observer.observe(loadMoreTriggerRef.current);
-        return () => observer.disconnect();
-    }, [fetchMore, hasMore, articles.length, loading, fetchingMore]);
+        const currentTrigger = loadMoreTriggerRef.current;
+        if (currentTrigger) observer.observe(currentTrigger);
+
+        return () => {
+            if (currentTrigger) observer.unobserve(currentTrigger);
+            observer.disconnect();
+        };
+    }, [loadMore, hasMore, articles.length]); // articles.length to re-observe if space opens up
 
     if (loading && articles.length === 0) {
         return (

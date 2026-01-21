@@ -74,7 +74,6 @@ func (h *Hub) Run() {
 				log.Printf("User %s exceeded max connections (%d), rejecting", client.UserID, maxConnectionsPerUser)
 				h.mu.Unlock()
 				client.Conn.Close()
-				close(client.Send)
 				continue
 			}
 

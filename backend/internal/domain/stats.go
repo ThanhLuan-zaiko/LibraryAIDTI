@@ -46,6 +46,7 @@ type DashboardData struct {
 
 type StatsRepository interface {
 	GetAdminStats() (*AdminStats, error)
+	GetPublicStats() (*PublicStats, error)
 	GetRecentActivities(limit int) ([]AdminActivity, error)
 	GetAnalytics(days int) ([]AnalyticsData, error)
 	GetCategoryDistribution() ([]CategoryDistribution, error)

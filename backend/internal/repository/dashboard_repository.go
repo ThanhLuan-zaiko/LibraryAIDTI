@@ -23,8 +23,8 @@ func (r *dashboardRepository) GetAnalytics() (*domain.DashboardAnalyticsData, er
 		return nil, err
 	}
 
-	// 2. Total Views (Sum of view_count from article_stats)
-	if err := r.db.Table("article_stats").Select("COALESCE(SUM(view_count), 0)").Scan(&data.TotalViews).Error; err != nil {
+	// 2. Total Views (Sum of view_count from articles)
+	if err := r.db.Model(&domain.Article{}).Select("COALESCE(SUM(view_count), 0)").Scan(&data.TotalViews).Error; err != nil {
 		return nil, err
 	}
 
@@ -433,7 +433,8 @@ func (r *dashboardRepository) GetSuperDashboard() (*domain.SuperDashboardData, e
 	r.db.Table("comments").Count(&data.Engagement.TotalComments)
 	r.db.Table("comments").Where("is_spam = ?", true).Count(&data.Engagement.SpamComments)
 	r.db.Table("comments").Where("is_deleted = ?", true).Count(&data.Engagement.DeletedComments)
-	r.db.Table("article_stats").Select("COALESCE(SUM(share_count), 0)").Scan(&data.Engagement.TotalShares)
+	// Sum share_count from articles table (denormalized)
+	r.db.Model(&domain.Article{}).Select("COALESCE(SUM(share_count), 0)").Scan(&data.Engagement.TotalShares)
 	r.db.Model(&domain.Article{}).Where("is_featured = ?", true).Count(&data.Engagement.FeaturedCount)
 
 	// 6. System

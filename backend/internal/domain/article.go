@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -60,26 +61,41 @@ type Article struct {
 }
 
 func (a *Article) PopulateImageURL() {
-	if a.ImageURL != "" {
-		return
-	}
-
 	cleanUrl := func(url string) string {
 		// Strip leading slashes to prevent double slashes when prepending /
 		url = strings.TrimPrefix(url, "/")
 		// Fix legacy paths that might contain ../../
 		url = strings.ReplaceAll(url, "../../", "")
+		if url == "" {
+			return ""
+		}
 		return "/" + url
 	}
 
-	// Try primary image first
+	// 1. Handle "image-existing-n" placeholders that might have been saved accidentally
+	if strings.HasPrefix(a.ImageURL, "image-existing-") {
+		idxStr := strings.TrimPrefix(a.ImageURL, "image-existing-")
+		if idx, err := strconv.Atoi(idxStr); err == nil && idx >= 0 && idx < len(a.Images) {
+			a.ImageURL = cleanUrl(a.Images[idx].ImageURL)
+			return
+		}
+	}
+
+	// 2. If already has a valid URL (not a placeholder), just clean it
+	if a.ImageURL != "" && !strings.HasPrefix(a.ImageURL, "image-ref-") {
+		a.ImageURL = cleanUrl(a.ImageURL)
+		return
+	}
+
+	// 3. Fallback: Try primary image first
 	for _, img := range a.Images {
 		if img.IsPrimary {
 			a.ImageURL = cleanUrl(img.ImageURL)
 			return
 		}
 	}
-	// Fallback to first image
+
+	// 4. Final fallback: first image
 	if len(a.Images) > 0 {
 		a.ImageURL = cleanUrl(a.Images[0].ImageURL)
 	}
@@ -146,6 +162,7 @@ type ArticleRepository interface {
 	Create(article *Article) error
 	GetAll(offset, limit int, filter map[string]interface{}) ([]Article, int64, error)
 	GetByID(id uuid.UUID) (*Article, error)
+	GetByIDFull(id uuid.UUID) (*Article, error)
 	GetBySlug(slug string) (*Article, error)
 	Update(article *Article) error
 	Delete(id uuid.UUID) error

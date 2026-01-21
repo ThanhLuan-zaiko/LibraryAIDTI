@@ -84,6 +84,23 @@ const ArticleSidebar: React.FC<ArticleSidebarProps> = ({ article, toc, readingPr
 
                                     const imageMatch = item.label.match(/!\[([^\]]*)\]\(([^)]+)\)/);
 
+                                    // Local helper to resolve images including Editor placeholders
+                                    const resolveTocImage = (src: string) => {
+                                        const images = article.images || [];
+                                        const sortedImages = [...images].sort((a, b) =>
+                                            (a.is_primary === b.is_primary ? 0 : a.is_primary ? -1 : 1)
+                                        );
+
+                                        const indexMatch = src.match(/image-existing-(\d+)/);
+                                        if (indexMatch) {
+                                            const idx = parseInt(indexMatch[1], 10);
+                                            if (idx >= 0 && idx < sortedImages.length) {
+                                                return getImageUrl(sortedImages[idx].image_url);
+                                            }
+                                        }
+                                        return getImageUrl(src);
+                                    };
+
                                     return (
                                         <li key={item.id} className="group cursor-pointer" onClick={() => scrollTo(item.id)}>
                                             <div className={`flex items-center gap-6 transition-all duration-500 ${isActive ? 'translate-x-4' : 'hover:translate-x-2'}`}>
@@ -93,7 +110,7 @@ const ArticleSidebar: React.FC<ArticleSidebarProps> = ({ article, toc, readingPr
                                                 <span className={`text-base tracking-tight transition-colors ${isActive ? 'text-gray-950 font-black' : 'text-gray-400 font-bold group-hover:text-gray-950'} ${item.level > 2 ? 'pl-4' : ''}`}>
                                                     {imageMatch ? (
                                                         <img
-                                                            src={getImageUrl(imageMatch[2])}
+                                                            src={resolveTocImage(imageMatch[2])}
                                                             alt={imageMatch[1]}
                                                             className="w-full h-auto rounded-xl shadow-sm border border-gray-100 my-2 block"
                                                         />

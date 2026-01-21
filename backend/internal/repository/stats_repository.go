@@ -170,6 +170,34 @@ func (r *statsRepository) GetAnalytics(days int) ([]domain.AnalyticsData, error)
 	return analytics, err
 }
 
+func (r *statsRepository) GetPublicStats() (*domain.PublicStats, error) {
+	var stats domain.PublicStats
+
+	// Count articles
+	err := r.db.Model(&domain.Article{}).Where("status = ?", domain.StatusPublished).Count(&stats.TotalArticles).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Count readers (users with SUBSCRIBER role)
+	err = r.db.Table("users").
+		Joins("JOIN user_roles ON user_roles.user_id = users.id").
+		Joins("JOIN roles ON roles.id = user_roles.role_id").
+		Where("roles.name = ?", "SUBSCRIBER").
+		Count(&stats.TotalReaders).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Count categories
+	err = r.db.Model(&domain.Category{}).Count(&stats.TotalCategories).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &stats, nil
+}
+
 func (r *statsRepository) GetCategoryDistribution() ([]domain.CategoryDistribution, error) {
 	distribution := []domain.CategoryDistribution{}
 

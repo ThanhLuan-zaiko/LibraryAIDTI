@@ -21,20 +21,25 @@ const StarRating: React.FC<StarRatingProps> = ({ articleId, initialAvg = 0, init
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
     useEffect(() => {
+        const controller = new AbortController();
+
         const fetchRating = async () => {
             try {
-                const data = await articleService.getArticleRating(articleId);
+                const data = await articleService.getArticleRating(articleId, controller.signal);
                 setStats({ average: data.average, count: data.count });
                 setRating(data.user_rating);
                 if (data.user_rating) {
                     setTempRating(data.user_rating);
                 }
-            } catch (error) {
+            } catch (error: any) {
+                if (error.name === 'CanceledError' || error.name === 'AbortError') return;
                 console.error('Error fetching rating:', error);
             }
         };
 
         if (articleId) fetchRating();
+
+        return () => controller.abort();
     }, [articleId, user]);
 
     const handleRate = async () => {

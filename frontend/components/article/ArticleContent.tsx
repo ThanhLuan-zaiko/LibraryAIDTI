@@ -59,21 +59,34 @@ const ArticleContent: React.FC<ArticleContentProps> = ({ article, content, onCop
                             img: ({ src, alt, ...props }) => {
                                 if (!src || src === '') return null;
 
-                                // Try to find the image in the article images by URL
-                                const findMatch = (img: any) =>
-                                    (img.image_url && (img.image_url === src || getImageUrl(img.image_url) === src));
+                                // Try to find the image in the article images by URL or Editor placeholder
+                                const findMatch = (img: any, index: number) => {
+                                    // 1. Match by URL literally
+                                    if (img.image_url === src || getImageUrl(img.image_url) === src) return true;
 
-                                const refImage = images.find(findMatch);
+                                    // 2. Match by Editor placeholder pattern: "image-existing-n"
+                                    if (src === `image-existing-${index}`) return true;
+
+                                    return false;
+                                };
 
                                 // "Smart Order": Labels match visual sorting (Primary first)
                                 const sortedImages = [...images].sort((a, b) =>
                                     (a.is_primary === b.is_primary ? 0 : a.is_primary ? -1 : 1)
                                 );
-                                const visualIndex = sortedImages.findIndex(findMatch);
 
-                                const finalSrc = getImageUrl(typeof src === 'string' ? src : undefined);
+                                const refImage = sortedImages.find((img, idx) => findMatch(img, idx));
+                                const visualIndex = sortedImages.findIndex((img, idx) => findMatch(img, idx));
 
-                                if (!finalSrc || finalSrc === '') return null;
+                                // Determine final source URL
+                                let finalUrl = typeof src === 'string' ? src : '';
+                                if (refImage) {
+                                    finalUrl = getImageUrl(refImage.image_url);
+                                } else {
+                                    finalUrl = getImageUrl(finalUrl);
+                                }
+
+                                if (!finalUrl || finalUrl === '') return null;
 
                                 // Dynamic label from database description or alt text
                                 let dynamicAlt = alt;
@@ -85,7 +98,7 @@ const ArticleContent: React.FC<ArticleContentProps> = ({ article, content, onCop
                                 return (
                                     <span className="block my-20">
                                         <img
-                                            src={finalSrc}
+                                            src={finalUrl}
                                             alt={dynamicAlt || ''}
                                             className="w-full rounded-[3rem] shadow-2xl border-4 border-white object-cover"
                                             {...props}
@@ -124,50 +137,56 @@ const ArticleContent: React.FC<ArticleContentProps> = ({ article, content, onCop
                     ))}
                 </div>
 
-                <div className="flex items-center gap-8">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Network Share</span>
-                    <div className="flex gap-4">
-                        {[
-                            {
-                                Icon: FaFacebook,
-                                color: 'hover:bg-blue-600',
-                                label: 'Facebook',
-                                onClick: () => {
-                                    const url = window.location.href;
-                                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
-                                }
-                            },
-                            {
-                                Icon: FaTwitter,
-                                color: 'hover:bg-black',
-                                label: 'X (Twitter)',
-                                onClick: () => {
-                                    const url = window.location.href;
-                                    const text = article.title;
-                                    window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, '_blank', 'width=600,height=400');
-                                }
-                            },
-                            {
-                                Icon: FaLinkedin,
-                                color: 'hover:bg-blue-700',
-                                label: 'LinkedIn',
-                                onClick: () => {
-                                    const url = window.location.href;
-                                    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
-                                }
-                            }
-                        ].map(({ Icon, color, onClick, label }, i) => (
-                            <button
-                                key={i}
-                                onClick={onClick}
-                                title={`Chia sẻ qua ${label}`}
-                                className={`w-14 h-14 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-500 border border-transparent shadow-sm ${color} hover:text-white hover:shadow-xl transition-all transform hover:-translate-y-1`}
-                            >
-                                <Icon className="w-6 h-6" />
-                            </button>
-                        ))}
+                <div className="flex flex-col gap-8">
+                    <div className="flex items-center gap-4">
+                        <div className="h-px w-8 bg-blue-600" />
+                        <span className="text-xs md:text-sm font-black text-gray-900 uppercase tracking-[0.4em]">Network Share</span>
+                    </div>
 
-                        <div className="w-px h-14 bg-gray-100 mx-1" />
+                    <div className="flex flex-wrap items-center gap-4 md:gap-6">
+                        <div className="flex items-center gap-3 md:gap-4">
+                            {[
+                                {
+                                    Icon: FaFacebook,
+                                    color: 'hover:bg-blue-600',
+                                    label: 'Facebook',
+                                    onClick: () => {
+                                        const url = window.location.href;
+                                        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+                                    }
+                                },
+                                {
+                                    Icon: FaTwitter,
+                                    color: 'hover:bg-black',
+                                    label: 'X (Twitter)',
+                                    onClick: () => {
+                                        const url = window.location.href;
+                                        const text = article.title;
+                                        window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, '_blank', 'width=600,height=400');
+                                    }
+                                },
+                                {
+                                    Icon: FaLinkedin,
+                                    color: 'hover:bg-blue-700',
+                                    label: 'LinkedIn',
+                                    onClick: () => {
+                                        const url = window.location.href;
+                                        window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+                                    }
+                                }
+                            ].map(({ Icon, color, onClick, label }, i) => (
+                                <button
+                                    key={i}
+                                    onClick={onClick}
+                                    title={`Chia sẻ qua ${label}`}
+                                    className={`w-12 h-12 md:w-16 md:h-16 flex items-center justify-center rounded-2xl md:rounded-3xl bg-gray-50 text-gray-500 border border-transparent shadow-sm ${color} hover:text-white hover:shadow-xl transition-all transform hover:-translate-y-1`}
+                                >
+                                    <Icon className="w-5 h-5 md:w-7 md:h-7" />
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="hidden sm:block w-px h-10 bg-gray-100 mx-2" />
 
                         <button
                             onClick={async () => {
@@ -175,9 +194,10 @@ const ArticleContent: React.FC<ArticleContentProps> = ({ article, content, onCop
                                 if (onCopyLink) onCopyLink();
                             }}
                             title="Sao chép liên kết"
-                            className="group w-14 h-14 flex items-center justify-center rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 shadow-sm hover:bg-blue-600 hover:text-white hover:shadow-xl transition-all transform hover:-translate-y-1"
+                            className="group h-12 md:h-16 px-6 md:px-10 flex items-center justify-center gap-4 rounded-2xl md:rounded-3xl bg-blue-50 text-blue-600 border border-blue-100 shadow-sm hover:bg-blue-600 hover:text-white hover:shadow-xl transition-all transform hover:-translate-y-1"
                         >
-                            <FaLink className="w-5 h-5" />
+                            <FaLink className="w-4 h-4 md:w-6 md:h-6" />
+                            <span className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em] hidden sm:block">Copy Link</span>
                         </button>
                     </div>
                 </div>

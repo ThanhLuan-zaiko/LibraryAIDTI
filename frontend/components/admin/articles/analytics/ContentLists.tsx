@@ -24,6 +24,13 @@ export default function ContentLists({ topArticles, activities, topTags, advance
         ? Math.round((advancedData.content_health.good_content_length / advancedData.seo_stats.total_seo_records) * 100)
         : 0;
 
+    // Sort articles by engagement (views + comments) descending
+    const sortedArticles = [...topArticles].sort((a, b) => {
+        const engagementA = a.view_count + (a.comment_count || 0);
+        const engagementB = b.view_count + (b.comment_count || 0);
+        return engagementB - engagementA;
+    });
+
     return (
         <div className="space-y-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -36,7 +43,7 @@ export default function ContentLists({ topArticles, activities, topTags, advance
                         </h3>
                     </div>
                     <div className="divide-y divide-gray-50">
-                        {topArticles.map((article, idx) => (
+                        {sortedArticles.map((article, idx) => (
                             <div key={article.id} className="p-4 hover:bg-gray-50 transition-colors flex items-center gap-4">
                                 <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-sm">
                                     {idx + 1}
@@ -45,9 +52,15 @@ export default function ContentLists({ topArticles, activities, topTags, advance
                                     <p className="text-sm font-bold text-gray-900 truncate">{article.title}</p>
                                     <p className="text-xs text-gray-500">{article.category?.name || 'Chưa phân loại'}</p>
                                 </div>
-                                <div className="text-right">
-                                    <div className="text-sm font-bold text-gray-900">{article.view_count.toLocaleString('vi-VN')}</div>
-                                    <div className="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">Lượt xem</div>
+                                <div className="flex items-center gap-4 shrink-0">
+                                    <div className="text-right">
+                                        <div className="text-sm font-bold text-gray-900">{article.view_count.toLocaleString('vi-VN')}</div>
+                                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">Lượt xem</div>
+                                    </div>
+                                    <div className="text-right border-l border-gray-100 pl-4">
+                                        <div className="text-sm font-bold text-purple-600">{(article.comment_count || 0).toLocaleString('vi-VN')}</div>
+                                        <div className="text-[10px] text-gray-500 uppercase font-bold tracking-tighter">Bình luận</div>
+                                    </div>
                                 </div>
                             </div>
                         ))}

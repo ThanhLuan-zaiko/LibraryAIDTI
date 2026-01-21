@@ -86,6 +86,16 @@ export interface Pagination {
     total: number;
 }
 
+export interface BackendResponse<T, M = any> {
+    success: boolean;
+    data: T;
+    meta?: M;
+    error?: {
+        code: number;
+        message: string;
+    };
+}
+
 export interface PaginatedResult<T> {
     data: T[];
     meta: Pagination;
@@ -100,37 +110,45 @@ export const articleService = {
         category_id?: string;
         is_featured?: boolean;
         minimal?: boolean;
-    }) {
-        const response = await apiClient.get<PaginatedResult<Article>>(ARTICLES_URL, {
-            params
+        sort?: string;
+    }, signal?: AbortSignal): Promise<PaginatedResult<Article>> {
+        const response = await apiClient.get<BackendResponse<Article[], Pagination>>(ARTICLES_URL, {
+            params,
+            signal
         });
-        return response.data;
+        return {
+            data: response.data.data || [],
+            meta: response.data.meta || { page: 1, limit: 10, total: 0 }
+        };
     },
 
-    async getTrending(limit: number = 10): Promise<{ data: Article[] }> {
-        const response = await apiClient.get<{ data: Article[] }>(`${ARTICLES_URL}/trending`, {
-            params: { limit }
+    async getTrending(limit: number = 10, signal?: AbortSignal): Promise<{ data: Article[] }> {
+        const response = await apiClient.get<BackendResponse<Article[]>>(`${ARTICLES_URL}/trending`, {
+            params: { limit },
+            signal
         });
-        return response.data;
+        return { data: response.data.data || [] };
     },
 
-    async getDiscussed(limit: number = 10): Promise<{ data: Article[] }> {
-        const response = await apiClient.get<{ data: Article[] }>(`${ARTICLES_URL}/discussed?limit=${limit}`);
-        return response.data;
+    async getDiscussed(limit: number = 10, signal?: AbortSignal): Promise<{ data: Article[] }> {
+        const response = await apiClient.get<BackendResponse<Article[]>>(`${ARTICLES_URL}/discussed`, {
+            params: { limit },
+            signal
+        });
+        return { data: response.data.data || [] };
     },
 
-    async getRandom(limit: number = 10, excludeIds: string[] = []): Promise<{ data: Article[] }> {
-        let url = `${ARTICLES_URL}/random?limit=${limit}`;
-        if (excludeIds.length > 0) {
-            url += `&exclude_ids=${excludeIds.join(',')}`;
-        }
-        const response = await apiClient.get<{ data: Article[] }>(url);
-        return response.data;
+    async getRandom(limit: number = 10, excludeIds: string[] = [], signal?: AbortSignal): Promise<{ data: Article[] }> {
+        const response = await apiClient.get<BackendResponse<Article[]>>(`${ARTICLES_URL}/random`, {
+            params: { limit, exclude_ids: excludeIds.join(',') },
+            signal
+        });
+        return { data: response.data.data || [] };
     },
 
-    async getById(id: string) {
-        const response = await apiClient.get<{ data: Article }>(`${ARTICLES_URL}/${id}`);
-        return response.data.data;
+    async getById(id: string, signal?: AbortSignal): Promise<Article | null> {
+        const response = await apiClient.get<BackendResponse<Article>>(`${ARTICLES_URL}/${id}`, { signal });
+        return response.data.data || null;
     },
 
     async create(data: ArticleInput) {
@@ -172,9 +190,9 @@ export const articleService = {
         return response.data;
     },
 
-    async getRelations(id: string): Promise<ArticleRelationDetail> {
-        const response = await apiClient.get<ArticleRelationDetail>(`${ARTICLES_URL}/${id}/relations`);
-        return response.data;
+    async getRelations(id: string, signal?: AbortSignal): Promise<ArticleRelationDetail> {
+        const response = await apiClient.get<BackendResponse<ArticleRelationDetail>>(`${ARTICLES_URL}/${id}/relations`, { signal });
+        return response.data.data || { incoming_articles: [], outgoing_articles: [] };
     },
 
     async rateArticle(id: string, details: { content: number; clarity: number; relevance: number }) {
@@ -182,13 +200,13 @@ export const articleService = {
         return response.data;
     },
 
-    async getArticleRating(id: string) {
-        const response = await apiClient.get<{
+    async getArticleRating(id: string, signal?: AbortSignal) {
+        const response = await apiClient.get<BackendResponse<{
             average: number;
             count: number;
             user_rating: { content: number; clarity: number; relevance: number } | null
-        }>(`${ARTICLES_URL}/${id}/rating`);
-        return response.data;
+        }>>(`${ARTICLES_URL}/${id}/rating`, { signal });
+        return response.data.data || { average: 0, count: 0, user_rating: null };
     }
 };
 
