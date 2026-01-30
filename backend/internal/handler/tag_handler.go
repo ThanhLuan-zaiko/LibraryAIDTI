@@ -1,6 +1,8 @@
 package handler
 
 import (
+	apperrors "backend/internal/core/error"
+	"backend/internal/core/response"
 	"backend/internal/domain"
 	"backend/internal/middleware"
 	"backend/internal/ws"
@@ -32,8 +34,16 @@ func (h *TagHandler) CreateTag(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.CreateTag(&tag); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Extract userID from context
+	userIDStr, _ := c.Get("user_id")
+	userID, _ := userIDStr.(uuid.UUID)
+
+	if err := h.service.CreateTag(&tag, userID); err != nil {
+		if apperrors.IsUniqueConstraintViolation(err) {
+			response.Error(c, apperrors.NewConflict("Thẻ với tên hoặc slug này đã tồn tại", err))
+			return
+		}
+		response.Error(c, apperrors.NewInternalError(err))
 		return
 	}
 
@@ -126,8 +136,16 @@ func (h *TagHandler) UpdateTag(c *gin.Context) {
 	}
 	tag.ID = id
 
-	if err := h.service.UpdateTag(&tag); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Extract userID from context
+	userIDStr, _ := c.Get("user_id")
+	userID, _ := userIDStr.(uuid.UUID)
+
+	if err := h.service.UpdateTag(&tag, userID); err != nil {
+		if apperrors.IsUniqueConstraintViolation(err) {
+			response.Error(c, apperrors.NewConflict("Thẻ với tên hoặc slug này đã tồn tại", err))
+			return
+		}
+		response.Error(c, apperrors.NewInternalError(err))
 		return
 	}
 
@@ -148,7 +166,11 @@ func (h *TagHandler) DeleteTag(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteTag(id); err != nil {
+	// Extract userID from context
+	userIDStr, _ := c.Get("user_id")
+	userID, _ := userIDStr.(uuid.UUID)
+
+	if err := h.service.DeleteTag(id, userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

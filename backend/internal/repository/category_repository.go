@@ -2,6 +2,7 @@ package repository
 
 import (
 	"backend/internal/domain"
+	"backend/internal/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -65,9 +66,9 @@ func (r *categoryRepository) GetStats() ([]domain.CategoryStats, error) {
 	stats := []domain.CategoryStats{}
 	// Count articles per category
 	err := r.db.Table("categories").
-		Select("categories.id, categories.name, count(articles.id) as article_count").
+		Select("categories.id, categories.name, categories.slug, count(articles.id) as article_count").
 		Joins("LEFT JOIN articles ON articles.category_id = categories.id").
-		Group("categories.id, categories.name").
+		Group("categories.id, categories.name, categories.slug").
 		Order("article_count DESC").
 		Scan(&stats).Error
 	return stats, err
@@ -168,5 +169,84 @@ func (r *categoryRepository) Update(category *domain.Category) error {
 }
 
 func (r *categoryRepository) Delete(id uuid.UUID) error {
-	return r.db.Delete(&domain.Category{}, "id = ?", id).Error
+	var articleIDs []uuid.UUID
+
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		// 1. Get all category IDs in the tree (including self)
+		var categoryIDs []uuid.UUID
+		if err := tx.Raw(`
+			WITH RECURSIVE category_tree AS (
+				SELECT id FROM categories WHERE id = ?
+				UNION ALL
+				SELECT c.id FROM categories c
+				INNER JOIN category_tree ct ON c.parent_id = ct.id
+			)
+			SELECT id FROM category_tree
+		`, id).Scan(&categoryIDs).Error; err != nil {
+			return err
+		}
+
+		if len(categoryIDs) == 0 {
+			return nil
+		}
+
+		// 2. Get all article IDs belonging to these categories
+		if err := tx.Model(&domain.Article{}).Where("category_id IN ?", categoryIDs).Pluck("id", &articleIDs).Error; err != nil {
+			return err
+		}
+
+		if len(articleIDs) > 0 {
+			// 3. Delete all related data for these articles
+			// Join tables first
+			if err := tx.Exec("DELETE FROM article_tags WHERE article_id IN ?", articleIDs).Error; err != nil {
+				return err
+			}
+			if err := tx.Exec("DELETE FROM article_relations WHERE article_id IN ? OR related_article_id IN ?", articleIDs, articleIDs).Error; err != nil {
+				return err
+			}
+
+			// Dependent tables
+			tables := []string{
+				"article_images",
+				"article_media",
+				"article_versions",
+				"article_status_logs",
+				"article_seo_metadata",
+				"article_seo_redirects",
+				"article_ratings",
+				"article_views",
+				"comments",
+			}
+
+			for _, table := range tables {
+				if err := tx.Exec("DELETE FROM "+table+" WHERE article_id IN ?", articleIDs).Error; err != nil {
+					return err
+				}
+			}
+
+			// 4. Delete the articles themselves
+			if err := tx.Delete(&domain.Article{}, "id IN ?", articleIDs).Error; err != nil {
+				return err
+			}
+		}
+
+		// 5. Delete the categories (subcategories first due to parent_id constraint)
+		if err := tx.Exec("DELETE FROM categories WHERE id IN ?", categoryIDs).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	// 6. Post-transaction: Cleanup physical files (Background)
+	if err == nil && len(articleIDs) > 0 {
+		go func(ids []uuid.UUID) {
+			imageProcessor := utils.NewImageProcessor()
+			for _, articleID := range ids {
+				imageProcessor.CleanupArticleImages(articleID.String())
+			}
+		}(articleIDs)
+	}
+
+	return err
 }

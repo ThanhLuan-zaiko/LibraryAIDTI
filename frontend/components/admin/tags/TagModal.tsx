@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Tag, tagService } from "@/services/tag.service";
+import { toast } from "react-hot-toast";
 
 interface TagModalProps {
     isOpen: boolean;
@@ -32,6 +33,7 @@ export default function TagModal({
                 slug: ""
             });
         }
+        setError(null);
     }, [editingTag, isOpen]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -39,14 +41,17 @@ export default function TagModal({
         try {
             if (editingTag) {
                 await tagService.update(editingTag.id, formData);
+                toast.success("Cập nhật thẻ thành công");
             } else {
                 await tagService.create(formData);
+                toast.success("Thêm thẻ mới thành công");
             }
 
             onSuccess();
             onClose();
-        } catch (error) {
-            setError("Không thể lưu thẻ.");
+        } catch (error: any) {
+            const message = error.response?.data?.error?.message || "Không thể lưu thẻ.";
+            setError(message);
         }
     };
 
@@ -64,6 +69,11 @@ export default function TagModal({
                     </button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    {error && (
+                        <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium border border-red-100 animate-in fade-in slide-in-from-top-1 duration-200">
+                            {error}
+                        </div>
+                    )}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-1">Tên thẻ</label>
                         <input

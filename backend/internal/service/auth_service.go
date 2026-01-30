@@ -4,20 +4,19 @@ import (
 	"backend/internal/domain"
 	"backend/internal/utils"
 	"errors"
-	"time"
 
 	"github.com/google/uuid"
 )
 
 type authService struct {
 	repo      domain.AuthRepository
-	auditRepo domain.AuditRepository
+	auditServ domain.AuditService
 }
 
-func NewAuthService(repo domain.AuthRepository, auditRepo domain.AuditRepository) domain.AuthService {
+func NewAuthService(repo domain.AuthRepository, auditServ domain.AuditService) domain.AuthService {
 	return &authService{
 		repo:      repo,
-		auditRepo: auditRepo,
+		auditServ: auditServ,
 	}
 }
 
@@ -66,15 +65,8 @@ func (s *authService) Login(email, password string) (*domain.User, error) {
 		return nil, errors.New("thông tin xác thực không hợp lệ")
 	}
 
-	// Log Action
-	s.auditRepo.Create(&domain.AuditLog{
-		ID:        uuid.New(),
-		UserID:    user.ID,
-		Action:    "LOGIN",
-		TableName: "users",
-		RecordID:  user.ID,
-		CreatedAt: time.Now(),
-	})
+	// Log Action (System Event)
+	s.auditServ.LogSystemEvent(&user.ID, "LOGIN", "users", user.ID, nil, nil)
 
 	return user, nil
 }

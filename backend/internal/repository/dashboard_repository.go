@@ -506,3 +506,66 @@ func (r *dashboardRepository) GetSuperDashboard() (*domain.SuperDashboardData, e
 
 	return &data, nil
 }
+func (r *dashboardRepository) GetSettingsAnalytics() (*domain.SettingsAnalyticsData, error) {
+	var data domain.SettingsAnalyticsData
+
+	// 1. Total Logs (Audit + System)
+	var totalAudit, totalSystem int64
+	r.db.Table("audit_logs").Count(&totalAudit)
+	r.db.Table("system_logs").Count(&totalSystem)
+	data.TotalLogs = totalAudit + totalSystem
+
+	// 2. Log Trend (Combined, Last 14 Days)
+	data.LogTrend = make([]struct {
+		Date  string `json:"date"`
+		Count int64  `json:"count"`
+	}, 0)
+	r.db.Raw(`
+		SELECT date, SUM(count) as count FROM (
+			SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date, COUNT(*) as count FROM audit_logs WHERE created_at >= NOW() - INTERVAL '14 days' GROUP BY date
+			UNION ALL
+			SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date, COUNT(*) as count FROM system_logs WHERE created_at >= NOW() - INTERVAL '14 days' GROUP BY date
+		) as combined
+		GROUP BY date ORDER BY date ASC
+	`).Scan(&data.LogTrend)
+
+	// 3. Action Distribution
+	data.ActionDistribution = make([]struct {
+		Action string `json:"action"`
+		Count  int64  `json:"count"`
+	}, 0)
+	r.db.Raw(`
+		SELECT action, COUNT(*) as count FROM (
+			SELECT action FROM audit_logs
+			UNION ALL
+			SELECT action FROM system_logs
+		) as combined
+		GROUP BY action ORDER BY count DESC LIMIT 10
+	`).Scan(&data.ActionDistribution)
+
+	// 4. Table Activity
+	data.TableActivity = make([]struct {
+		TableName string `json:"table_name"`
+		Count     int64  `json:"count"`
+	}, 0)
+	r.db.Raw(`
+		SELECT table_name, COUNT(*) as count FROM (
+			SELECT table_name FROM audit_logs
+			UNION ALL
+			SELECT table_name FROM system_logs
+		) as combined
+		WHERE table_name IS NOT NULL AND table_name != ''
+		GROUP BY table_name ORDER BY count DESC LIMIT 8
+	`).Scan(&data.TableActivity)
+
+	// 5. System Pulse
+	sqlDB, _ := r.db.DB()
+	data.SystemPulse.DBConnections = sqlDB.Stats().OpenConnections
+	var uptimeResult struct {
+		Seconds int64
+	}
+	r.db.Raw("SELECT CAST(EXTRACT(EPOCH FROM (NOW() - Pg_postmaster_start_time())) AS BIGINT) as seconds").Scan(&uptimeResult)
+	data.SystemPulse.UptimeSeconds = uptimeResult.Seconds
+
+	return &data, nil
+}

@@ -9,19 +9,25 @@ import (
 )
 
 type categoryService struct {
-	repo domain.CategoryRepository
+	repo      domain.CategoryRepository
+	auditServ domain.AuditService
 }
 
-func NewCategoryService(repo domain.CategoryRepository) domain.CategoryService {
-	return &categoryService{repo: repo}
+func NewCategoryService(repo domain.CategoryRepository, auditServ domain.AuditService) domain.CategoryService {
+	return &categoryService{repo: repo, auditServ: auditServ}
 }
 
-func (s *categoryService) CreateCategory(category *domain.Category) error {
+func (s *categoryService) CreateCategory(category *domain.Category, userID uuid.UUID) error {
 	if category.Slug == "" {
 		category.Slug = utils.GenerateSlug(category.Name)
 	}
 	category.Slug = strings.ToLower(category.Slug)
-	return s.repo.Create(category)
+	if err := s.repo.Create(category); err != nil {
+		return err
+	}
+
+	s.auditServ.LogAction(userID, "CREATE", "categories", category.ID, nil, category)
+	return nil
 }
 
 func (s *categoryService) GetCategories() ([]domain.Category, error) {
@@ -57,15 +63,27 @@ func (s *categoryService) GetCategoryList(page, limit int, search, sortBy, order
 	return s.repo.GetList(page, limit, search, sortBy, order, minimal)
 }
 
-func (s *categoryService) UpdateCategory(category *domain.Category) error {
+func (s *categoryService) UpdateCategory(category *domain.Category, userID uuid.UUID) error {
+	existing, _ := s.repo.GetByID(category.ID)
+
 	// Always sync slug with name on update to satisfy requirement
 	if category.Name != "" {
 		category.Slug = utils.GenerateSlug(category.Name)
 	}
 	category.Slug = strings.ToLower(category.Slug)
-	return s.repo.Update(category)
+	if err := s.repo.Update(category); err != nil {
+		return err
+	}
+
+	s.auditServ.LogAction(userID, "UPDATE", "categories", category.ID, existing, category)
+	return nil
 }
 
-func (s *categoryService) DeleteCategory(id uuid.UUID) error {
-	return s.repo.Delete(id)
+func (s *categoryService) DeleteCategory(id uuid.UUID, userID uuid.UUID) error {
+	existing, _ := s.repo.GetByID(id)
+	if err := s.repo.Delete(id); err != nil {
+		return err
+	}
+	s.auditServ.LogAction(userID, "DELETE", "categories", id, existing, nil)
+	return nil
 }

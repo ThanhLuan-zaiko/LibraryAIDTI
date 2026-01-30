@@ -489,6 +489,9 @@ SELECT * FROM article_seo_redirects;
 SELECT * FROM comments;
 SELECT * FROM article_ratings;
 SELECT * FROM article_views;
+SELECT * FROM audit_logs;
+SELECT * FROM system_settings;
+SELECT * FROM system_logs;
 
 UPDATE articles 
 SET view_count = (

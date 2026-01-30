@@ -108,6 +108,7 @@ export const articleService = {
         search?: string;
         status?: string;
         category_id?: string;
+        tag_id?: string;
         is_featured?: boolean;
         minimal?: boolean;
         sort?: string;

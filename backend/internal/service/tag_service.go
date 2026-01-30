@@ -9,19 +9,25 @@ import (
 )
 
 type tagService struct {
-	repo domain.TagRepository
+	repo      domain.TagRepository
+	auditServ domain.AuditService
 }
 
-func NewTagService(repo domain.TagRepository) domain.TagService {
-	return &tagService{repo: repo}
+func NewTagService(repo domain.TagRepository, auditServ domain.AuditService) domain.TagService {
+	return &tagService{repo: repo, auditServ: auditServ}
 }
 
-func (s *tagService) CreateTag(tag *domain.Tag) error {
+func (s *tagService) CreateTag(tag *domain.Tag, userID uuid.UUID) error {
 	if tag.Slug == "" {
 		tag.Slug = utils.GenerateSlug(tag.Name)
 	}
 	tag.Slug = strings.ToLower(tag.Slug)
-	return s.repo.Create(tag)
+	if err := s.repo.Create(tag); err != nil {
+		return err
+	}
+
+	s.auditServ.LogAction(userID, "CREATE", "tags", tag.ID, nil, tag)
+	return nil
 }
 
 func (s *tagService) GetTags() ([]domain.Tag, error) {
@@ -53,15 +59,27 @@ func (s *tagService) GetTagStats(limit int) ([]domain.TagStats, error) {
 	return s.repo.GetStats(limit)
 }
 
-func (s *tagService) UpdateTag(tag *domain.Tag) error {
+func (s *tagService) UpdateTag(tag *domain.Tag, userID uuid.UUID) error {
+	existing, _ := s.repo.GetByID(tag.ID)
+
 	// Always sync slug with name on update to satisfy requirement
 	if tag.Name != "" {
 		tag.Slug = utils.GenerateSlug(tag.Name)
 	}
 	tag.Slug = strings.ToLower(tag.Slug)
-	return s.repo.Update(tag)
+	if err := s.repo.Update(tag); err != nil {
+		return err
+	}
+
+	s.auditServ.LogAction(userID, "UPDATE", "tags", tag.ID, existing, tag)
+	return nil
 }
 
-func (s *tagService) DeleteTag(id uuid.UUID) error {
-	return s.repo.Delete(id)
+func (s *tagService) DeleteTag(id uuid.UUID, userID uuid.UUID) error {
+	existing, _ := s.repo.GetByID(id)
+	if err := s.repo.Delete(id); err != nil {
+		return err
+	}
+	s.auditServ.LogAction(userID, "DELETE", "tags", id, existing, nil)
+	return nil
 }

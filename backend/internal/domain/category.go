@@ -23,6 +23,7 @@ type Category struct {
 type CategoryStats struct {
 	ID           uuid.UUID `json:"id"`
 	Name         string    `json:"name"`
+	Slug         string    `json:"slug"`
 	ArticleCount int64     `json:"article_count"`
 }
 
@@ -62,24 +63,24 @@ type TagRepository interface {
 }
 
 type CategoryService interface {
-	CreateCategory(category *Category) error
+	CreateCategory(category *Category, userID uuid.UUID) error
 	GetCategories() ([]Category, error)
 	GetCategoryByID(id uuid.UUID) (*Category, error)
 	GetCategoryBySlug(slug string) (*Category, error)
 	GetCategoryList(page, limit int, search, sortBy, order string, minimal bool) (*PaginatedResult[Category], error)
 	GetCategoryStats() ([]CategoryStats, error)
 	GetCategoryTree() ([]Category, error)
-	UpdateCategory(category *Category) error
-	DeleteCategory(id uuid.UUID) error
+	UpdateCategory(category *Category, userID uuid.UUID) error
+	DeleteCategory(id uuid.UUID, userID uuid.UUID) error
 }
 
 type TagService interface {
-	CreateTag(tag *Tag) error
+	CreateTag(tag *Tag, userID uuid.UUID) error
 	GetTags() ([]Tag, error)
 	GetTagByID(id uuid.UUID) (*Tag, error)
 	GetTagBySlug(slug string) (*Tag, error)
 	GetTagList(page, limit int, search, sortBy, order string) (*PaginatedResult[Tag], error)
 	GetTagStats(limit int) ([]TagStats, error)
-	UpdateTag(tag *Tag) error
-	DeleteTag(id uuid.UUID) error
+	UpdateTag(tag *Tag, userID uuid.UUID) error
+	DeleteTag(id uuid.UUID, userID uuid.UUID) error
 }

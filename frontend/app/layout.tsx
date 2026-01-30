@@ -40,6 +40,9 @@ export default function RootLayout({
             </main>
             <Toaster
               position="bottom-center"
+              containerStyle={{
+                zIndex: 99999,
+              }}
               toastOptions={{
                 className: '!bg-white/80 !backdrop-blur-md !border !border-gray-100 !px-6 !py-3 !rounded-full !shadow-xl !text-sm !font-semibold !text-neutral-900',
                 success: {

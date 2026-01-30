@@ -7,9 +7,10 @@ import { HiOutlineTrendingUp, HiOutlineChevronRight } from 'react-icons/hi';
 
 interface TrendingSectionProps {
     articles: Article[];
+    title?: string;
 }
 
-const TrendingSection: React.FC<TrendingSectionProps> = ({ articles }) => {
+const TrendingSection: React.FC<TrendingSectionProps> = ({ articles, title = "Thịnh hành" }) => {
     if (!articles || articles.length === 0) return null;
 
     return (
@@ -19,7 +20,7 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({ articles }) => {
                     <HiOutlineTrendingUp className="w-6 h-6" />
                 </div>
                 <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">
-                    Thịnh hành
+                    {title}
                 </h3>
             </div>
 

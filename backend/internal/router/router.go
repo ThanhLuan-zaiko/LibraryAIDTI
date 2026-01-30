@@ -25,6 +25,8 @@ type Router struct {
 	commentHandler      *handler.CommentHandler      // Added
 	ratingHandler       *handler.RatingHandler       // Added
 	viewTrackingHandler *handler.ViewTrackingHandler // Added
+	settingHandler      *handler.SettingHandler      // Added
+	auditHandler        *handler.AuditHandler        // Added
 	userRepo            domain.UserRepository
 	wsHub               *ws.Hub
 	cache               *middleware.ResponseCache
@@ -43,6 +45,8 @@ func NewRouter(
 	commentHandler *handler.CommentHandler, // Added
 	ratingHandler *handler.RatingHandler, // Added
 	viewTrackingHandler *handler.ViewTrackingHandler, // Added
+	settingHandler *handler.SettingHandler, // Added
+	auditHandler *handler.AuditHandler, // Added
 	wsHub *ws.Hub,
 	cache *middleware.ResponseCache,
 ) *Router {
@@ -59,6 +63,8 @@ func NewRouter(
 		commentHandler:      commentHandler,      // Added
 		ratingHandler:       ratingHandler,       // Added
 		viewTrackingHandler: viewTrackingHandler, // Added
+		settingHandler:      settingHandler,      // Added
+		auditHandler:        auditHandler,        // Added
 		userRepo:            userHandler.GetService().GetRepo(),
 		wsHub:               wsHub,
 		cache:               cache,
@@ -105,8 +111,8 @@ func (r *Router) Setup(engine *gin.Engine) {
 	})
 
 	v1 := engine.Group("/api/v1")
-	// 1. Protection from massive payloads (5MB limit for regular API calls)
-	v1.Use(middleware.RequestSizeMiddleware(5 * 1024 * 1024))
+	// 1. Protection from massive payloads (50MB limit for regular API calls)
+	v1.Use(middleware.RequestSizeMiddleware(50 * 1024 * 1024))
 	// 2. Global rate limiting - 30 req/sec, burst 60
 	v1.Use(middleware.RateLimitMiddleware(rate.Limit(30.0), 60))
 	// 3. Request Timeout
@@ -204,6 +210,7 @@ func (r *Router) Setup(engine *gin.Engine) {
 			protected.GET("/admin/advanced-analytics", r.dashboardHandler.GetAdvancedAnalytics)
 			protected.GET("/admin/analytics/hierarchy/stats", middleware.CacheMiddleware(r.cache, time.Minute*5), r.dashboardHandler.GetHierarchyStats)
 			protected.GET("/admin/analytics/hierarchy/tree", middleware.CacheMiddleware(r.cache, time.Minute*10), r.dashboardHandler.GetCategoryTree)
+			protected.GET("/admin/settings-stats", r.dashboardHandler.GetSettingsAnalytics)
 
 			// User Management (Admin only - Should add role check middleware later)
 			users := protected.Group("/users")
@@ -240,6 +247,19 @@ func (r *Router) Setup(engine *gin.Engine) {
 
 				seo.GET("/article-redirects", r.seoHandler.GetArticleRedirects)
 				seo.GET("/trends", r.seoHandler.GetTrends)
+			}
+
+			// System Settings & Logs
+			settings := protected.Group("/settings")
+			{
+				settings.GET("", r.settingHandler.GetSettings)
+				settings.PUT("", r.settingHandler.UpdateSettings)
+			}
+
+			logs := protected.Group("/logs")
+			{
+				logs.GET("/audit", r.auditHandler.GetAuditLogs)
+				logs.GET("/system", r.auditHandler.GetSystemLogs)
 			}
 		}
 	}

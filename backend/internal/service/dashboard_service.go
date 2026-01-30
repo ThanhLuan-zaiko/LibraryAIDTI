@@ -48,6 +48,22 @@ func (s *dashboardService) GetSuperDashboard() (*domain.SuperDashboardData, erro
 	return data, nil
 }
 
+func (s *dashboardService) GetSettingsAnalytics() (*domain.SettingsAnalyticsData, error) {
+	data, err := s.repo.GetSettingsAnalytics()
+	if err != nil {
+		return nil, err
+	}
+
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	data.SystemPulse.GoRoutines = runtime.NumGoroutine()
+	data.SystemPulse.MemoryUsage = m.Alloc
+	data.SystemPulse.CPUUsage = float64(runtime.NumCPU())
+
+	return data, nil
+}
+
 func (s *dashboardService) ExportDashboardData() ([]byte, error) {
 	data, err := s.GetSuperDashboard()
 	if err != nil {

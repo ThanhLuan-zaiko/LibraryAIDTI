@@ -50,8 +50,8 @@ const TopicCloud: React.FC = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {categories.map((cat) => (
                                 <Link
-                                    key={cat.id}
-                                    href={`/category/${cat.id}`}
+                                    key={cat.slug}
+                                    href={`/category/${cat.slug}`}
                                     className="group p-5 bg-gray-50 rounded-2xl border border-transparent hover:border-blue-100 hover:bg-blue-50/50 transition-all duration-300"
                                 >
                                     <div className="flex justify-between items-center">

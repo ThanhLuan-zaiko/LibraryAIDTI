@@ -36,9 +36,9 @@ func (h *UploadHandler) UploadImage(c *gin.Context) {
 		return
 	}
 
-	// Validate file size (e.g., max 5MB)
-	if file.Size > 5*1024*1024 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "File too large. Max size is 5MB"})
+	// Validate file size (e.g., max 20MB)
+	if file.Size > 20*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File too large. Max size is 20MB"})
 		return
 	}
 

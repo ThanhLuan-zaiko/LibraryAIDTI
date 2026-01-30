@@ -1,11 +1,5 @@
 package domain
 
-import (
-	"time"
-
-	"github.com/google/uuid"
-)
-
 // Renaming key structs to ensure uniqueness and clarity
 type DashboardAnalyticsData struct {
 	TotalArticles   int64           `json:"total_articles"`
@@ -79,15 +73,6 @@ type ArticleTrend struct {
 	Count int64  `json:"count"`
 }
 
-type AuditLog struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	Action    string    `json:"action"`
-	TableName string    `json:"table_name"`
-	RecordID  uuid.UUID `json:"record_id"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
 type EngagementStats struct {
 	TotalComments   int64 `json:"total_comments"`
 	SpamComments    int64 `json:"spam_comments"`
@@ -121,6 +106,23 @@ type EditorialSpeed struct {
 	TotalPublished     int64   `json:"total_published"`
 }
 
+type SettingsAnalyticsData struct {
+	LogTrend []struct {
+		Date  string `json:"date"`
+		Count int64  `json:"count"`
+	} `json:"log_trend"`
+	ActionDistribution []struct {
+		Action string `json:"action"`
+		Count  int64  `json:"count"`
+	} `json:"action_distribution"`
+	TableActivity []struct {
+		TableName string `json:"table_name"`
+		Count     int64  `json:"count"`
+	} `json:"table_activity"`
+	SystemPulse SystemPulse `json:"system_pulse"`
+	TotalLogs   int64       `json:"total_logs"`
+}
+
 type SuperDashboardData struct {
 	Stats             DashboardAnalyticsData `json:"stats"`
 	Advanced          AdvancedAnalyticsData  `json:"advanced"`
@@ -140,6 +142,7 @@ type DashboardRepository interface {
 	GetCategoryHierarchyStats() (*CategoryHierarchyStats, error)
 	GetCategoryTree() ([]CategoryNode, error)
 	GetSuperDashboard() (*SuperDashboardData, error)
+	GetSettingsAnalytics() (*SettingsAnalyticsData, error)
 }
 
 type DashboardService interface {
@@ -148,9 +151,6 @@ type DashboardService interface {
 	GetCategoryHierarchyStats() (*CategoryHierarchyStats, error)
 	GetCategoryTree() ([]CategoryNode, error)
 	GetSuperDashboard() (*SuperDashboardData, error)
+	GetSettingsAnalytics() (*SettingsAnalyticsData, error)
 	ExportDashboardData() ([]byte, error)
-}
-
-type AuditRepository interface {
-	Create(log *AuditLog) error
 }

@@ -28,6 +28,15 @@ func (h *DashboardHandler) GetAnalytics(c *gin.Context) {
 	c.JSON(http.StatusOK, analytics)
 }
 
+func (h *DashboardHandler) GetSettingsAnalytics(c *gin.Context) {
+	analytics, err := h.service.GetSettingsAnalytics()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, analytics)
+}
+
 func (h *DashboardHandler) GetAdvancedAnalytics(c *gin.Context) {
 	// Semaphore: acquire
 	h.semaphore <- struct{}{}

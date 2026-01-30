@@ -2,6 +2,7 @@ package repository
 
 import (
 	"backend/internal/domain"
+	"backend/internal/utils"
 	"errors"
 
 	"github.com/google/uuid"
@@ -66,6 +67,10 @@ func (r *articleRepository) GetAll(offset, limit int, filter map[string]interfac
 
 	if categoryID, ok := filter["category_id"]; ok && categoryID != "" {
 		query = query.Where("articles.category_id = ?", categoryID)
+	}
+	if tagID, ok := filter["tag_id"]; ok && tagID != "" {
+		query = query.Joins("JOIN article_tags ON article_tags.article_id = articles.id").
+			Where("article_tags.tag_id = ?", tagID)
 	}
 
 	if isFeatured, ok := filter["is_featured"]; ok {
@@ -249,21 +254,51 @@ func (r *articleRepository) Update(article *domain.Article) error {
 }
 
 func (r *articleRepository) Delete(id uuid.UUID) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		// Cleanup relations that might not have ON DELETE CASCADE yet
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		// 1. Delete all related data for this article
+		// Join tables first
+		if err := tx.Exec("DELETE FROM article_tags WHERE article_id = ?", id).Error; err != nil {
+			return err
+		}
 		if err := tx.Exec("DELETE FROM article_relations WHERE article_id = ? OR related_article_id = ?", id, id).Error; err != nil {
 			return err
 		}
-		if err := tx.Exec("DELETE FROM article_views WHERE article_id = ?", id).Error; err != nil {
-			return err
+
+		// Dependent tables
+		tables := []string{
+			"article_images",
+			"article_media",
+			"article_versions",
+			"article_status_logs",
+			"article_seo_metadata",
+			"article_seo_redirects",
+			"article_ratings",
+			"article_views",
+			"comments",
 		}
 
-		// Delete the article
+		for _, table := range tables {
+			if err := tx.Exec("DELETE FROM "+table+" WHERE article_id = ?", id).Error; err != nil {
+				return err
+			}
+		}
+
+		// 2. Delete the article itself
 		if err := tx.Delete(&domain.Article{}, "id = ?", id).Error; err != nil {
 			return err
 		}
 		return nil
 	})
+
+	// 3. Post-transaction: Cleanup physical files (Background)
+	if err == nil {
+		go func(articleID string) {
+			imageProcessor := utils.NewImageProcessor()
+			imageProcessor.CleanupArticleImages(articleID)
+		}(id.String())
+	}
+
+	return err
 }
 
 func (r *articleRepository) AddTags(articleID uuid.UUID, tagIDs []uuid.UUID) error {

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	apperrors "backend/internal/core/error"
+	"backend/internal/core/response"
 	"backend/internal/domain"
 	"backend/internal/middleware"
 	"backend/internal/ws"
@@ -32,8 +34,16 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.CreateCategory(&category); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Extract userID from context
+	userIDStr, _ := c.Get("user_id")
+	userID, _ := userIDStr.(uuid.UUID)
+
+	if err := h.service.CreateCategory(&category, userID); err != nil {
+		if apperrors.IsUniqueConstraintViolation(err) {
+			response.Error(c, apperrors.NewConflict("Danh mục với tên hoặc slug này đã tồn tại", err))
+			return
+		}
+		response.Error(c, apperrors.NewInternalError(err))
 		return
 	}
 
@@ -128,8 +138,16 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 	}
 	category.ID = id
 
-	if err := h.service.UpdateCategory(&category); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Extract userID from context
+	userIDStr, _ := c.Get("user_id")
+	userID, _ := userIDStr.(uuid.UUID)
+
+	if err := h.service.UpdateCategory(&category, userID); err != nil {
+		if apperrors.IsUniqueConstraintViolation(err) {
+			response.Error(c, apperrors.NewConflict("Danh mục với tên hoặc slug này đã tồn tại", err))
+			return
+		}
+		response.Error(c, apperrors.NewInternalError(err))
 		return
 	}
 
@@ -150,7 +168,11 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteCategory(id); err != nil {
+	// Extract userID from context
+	userIDStr, _ := c.Get("user_id")
+	userID, _ := userIDStr.(uuid.UUID)
+
+	if err := h.service.DeleteCategory(id, userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

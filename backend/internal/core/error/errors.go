@@ -75,6 +75,25 @@ func NewInternalServerError(message string, err error) *AppError {
 	}
 }
 
+// NewConflict creates a 409 Conflict error
+func NewConflict(message string, err error) *AppError {
+	return &AppError{
+		Code:    http.StatusConflict,
+		Message: message,
+		Err:     err,
+	}
+}
+
+// IsUniqueConstraintViolation checks if an error is a PostgreSQL unique constraint violation
+func IsUniqueConstraintViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	// Check for Postgres unique constraint violation error (code 23505)
+	return strings.Contains(err.Error(), "duplicate key value violates unique constraint") ||
+		strings.Contains(err.Error(), "23505")
+}
+
 // Validation error translator (Simple map based approach)
 // In a real app, use go-playground/validator/v10/translations
 func TranslateValidationError(err error) *AppError {
@@ -102,6 +121,8 @@ func TranslateValidationError(err error) *AppError {
 		msg = "Phải có ít nhất một ảnh"
 	case strings.Contains(errStr, "'Images' failed on the 'min' tag"):
 		msg = "Phải có ít nhất một ảnh"
+	case strings.Contains(errStr, "'Images' failed on the 'max' tag"):
+		msg = "Một bài viết chỉ được chứa tối đa 30 hình ảnh"
 	case strings.Contains(errStr, "'Email' failed on the 'required' tag"):
 		msg = "Email không được để trống"
 	case strings.Contains(errStr, "'Email' failed on the 'email' tag"):

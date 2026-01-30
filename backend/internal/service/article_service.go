@@ -17,18 +17,18 @@ import (
 type articleService struct {
 	repo           domain.ArticleRepository
 	mediaRepo      domain.MediaRepository
-	auditRepo      domain.AuditRepository
+	auditServ      domain.AuditService
 	seoService     domain.SeoService
 	imageProcessor *utils.ImageProcessor
 	hub            *ws.Hub // Directly using Hub for simplicity
 	sfGroup        singleflight.Group
 }
 
-func NewArticleService(repo domain.ArticleRepository, mediaRepo domain.MediaRepository, auditRepo domain.AuditRepository, seoService domain.SeoService, hub *ws.Hub) domain.ArticleService {
+func NewArticleService(repo domain.ArticleRepository, mediaRepo domain.MediaRepository, auditServ domain.AuditService, seoService domain.SeoService, hub *ws.Hub) domain.ArticleService {
 	return &articleService{
 		repo:           repo,
 		mediaRepo:      mediaRepo,
-		auditRepo:      auditRepo,
+		auditServ:      auditServ,
 		seoService:     seoService,
 		imageProcessor: utils.NewImageProcessor(),
 		hub:            hub,
@@ -92,15 +92,7 @@ func (s *articleService) CreateArticle(article *domain.Article) error {
 	s.broadcastEvent("article_created", article)
 
 	// 8. Log Action
-	if err := s.auditRepo.Create(&domain.AuditLog{
-		ID:        uuid.New(),
-		UserID:    article.AuthorID,
-		Action:    "CREATE",
-		TableName: "articles",
-		RecordID:  article.ID,
-		CreatedAt: time.Now(),
-	}); err != nil {
-	}
+	s.auditServ.LogAction(article.AuthorID, "CREATE", "articles", article.ID, nil, article)
 
 	return nil
 }
@@ -251,6 +243,9 @@ func (s *articleService) UpdateArticle(article *domain.Article) error {
 
 	s.broadcastEvent("article_updated", article)
 
+	// Log Action
+	s.auditServ.LogAction(article.AuthorID, "UPDATE", "articles", article.ID, existing, article)
+
 	return nil
 }
 
@@ -301,31 +296,14 @@ func (s *articleService) ensureSEOMetadata(article *domain.Article) {
 }
 
 func (s *articleService) DeleteArticle(id uuid.UUID) error {
-	// Get article with media to cleanup
-	article, err := s.repo.GetByIDFull(id)
-	if err == nil && article != nil {
-		fmt.Printf("Cleaning up files for article: %s\n", id)
-
-		// 1. Cleanup specific media records first (if they have individual file records)
-		for _, am := range article.MediaList {
-			if am.Media != nil && am.Media.FileURL != "" {
-				if err := s.imageProcessor.DeleteImage(am.Media.FileURL); err != nil {
-					fmt.Printf("Warning: Failed to delete physical file %s: %v\n", am.Media.FileURL, err)
-				}
-				s.mediaRepo.DeleteMediaByUrl(am.Media.FileURL)
-			}
-		}
-
-		// 2. Cleanup the entire article directory (images used in Markdown, thumbnails, etc.)
-		if err := s.imageProcessor.CleanupArticleImages(id.String()); err != nil {
-			fmt.Printf("Warning: Failed to cleanup article directory: %v\n", err)
-		}
-	}
-
 	if err := s.repo.Delete(id); err != nil {
 		return err
 	}
 	s.broadcastEvent("article_deleted", map[string]interface{}{"id": id})
+
+	// Log Action
+	s.auditServ.LogAction(uuid.Nil, "DELETE", "articles", id, nil, nil)
+
 	return nil
 }
 

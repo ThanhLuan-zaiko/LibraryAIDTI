@@ -45,7 +45,7 @@ type ArticleCreateRequest struct {
 	IsFeatured        bool                 `json:"is_featured"`
 	AllowComment      bool                 `json:"allow_comment"`
 	Tags              []domain.Tag         `json:"tags" binding:"required,min=1"`
-	Images            []Base64Image        `json:"images" binding:"required,min=1"` // base64 images
+	Images            []Base64Image        `json:"images" binding:"required,min=1,max=30"` // base64 images, max 30 limit
 	SeoMetadata       *domain.SeoMetadata  `json:"seo_metadata"`
 	RelatedArticleIDs []uuid.UUID          `json:"related_article_ids"`
 }
@@ -94,7 +94,11 @@ func (h *ArticleHandler) CreateArticle(c *gin.Context) {
 
 	// Create article first (which creates initial version and status log)
 	if err := h.service.CreateArticle(&article); err != nil {
-		c.Error(apperrors.NewInternalError(err))
+		if apperrors.IsUniqueConstraintViolation(err) {
+			response.Error(c, apperrors.NewConflict("Thêm bài viết thất bại: Slug này đã tồn tại", err))
+			return
+		}
+		response.Error(c, apperrors.NewInternalError(err))
 		return
 	}
 
@@ -266,6 +270,9 @@ func (h *ArticleHandler) GetArticles(c *gin.Context) {
 	}
 	if categoryID := c.Query("category_id"); categoryID != "" {
 		filter["category_id"] = categoryID
+	}
+	if tagID := c.Query("tag_id"); tagID != "" {
+		filter["tag_id"] = tagID
 	}
 	if minimal := c.Query("minimal"); minimal == "true" {
 		filter["minimal"] = true
@@ -513,7 +520,11 @@ func (h *ArticleHandler) UpdateArticle(c *gin.Context) {
 
 	// Update
 	if err := h.service.UpdateArticle(article); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if apperrors.IsUniqueConstraintViolation(err) {
+			response.Error(c, apperrors.NewConflict("Sửa bài viết thất bại: Slug này đã tồn tại", err))
+			return
+		}
+		response.Error(c, apperrors.NewInternalError(err))
 		return
 	}
 

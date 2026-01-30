@@ -14,6 +14,7 @@ import (
 	"backend/internal/router"
 	"backend/internal/service"
 	"backend/internal/session"
+	"backend/internal/worker"
 	"backend/internal/ws"
 
 	"github.com/gin-gonic/gin"
@@ -65,6 +66,9 @@ func main() {
 		&domain.ArticleSeoRedirect{},
 		&domain.ArticleRating{},
 		&domain.ArticleView{}, // View tracking
+		&domain.SystemSetting{},
+		&domain.AuditLog{},
+		&domain.SystemLog{},
 	)
 	if err != nil {
 		logger.Get().Error("AutoMigration failed", "error", err)
@@ -73,6 +77,7 @@ func main() {
 
 	// 4. Setup dependency injection
 	auditRepo := repository.NewAuditRepository(db.DB)
+	auditService := service.NewAuditService(auditRepo)
 
 	seoRepo := repository.NewSeoRepository(db.DB)
 	seoService := service.NewSeoService(seoRepo)
@@ -81,17 +86,17 @@ func main() {
 
 	articleRepo := repository.NewArticleRepository(db.DB)
 	categoryRepo := repository.NewCategoryRepository(db.DB)
-	articleService := service.NewArticleService(articleRepo, mediaRepo, auditRepo, seoService, wsHub)
-	categoryService := service.NewCategoryService(categoryRepo)
+	articleService := service.NewArticleService(articleRepo, mediaRepo, auditService, seoService, wsHub)
+	categoryService := service.NewCategoryService(categoryRepo, auditService)
 	articleHandler := handler.NewArticleHandler(articleService, respCache, wsHub)
 	categoryHandler := handler.NewCategoryHandler(categoryService, respCache, wsHub)
 
 	tagRepo := repository.NewTagRepository(db.DB)
-	tagService := service.NewTagService(tagRepo)
+	tagService := service.NewTagService(tagRepo, auditService)
 	tagHandler := handler.NewTagHandler(tagService, respCache, wsHub)
 
 	authRepo := repository.NewAuthRepository(db.DB)
-	authService := service.NewAuthService(authRepo, auditRepo)
+	authService := service.NewAuthService(authRepo, auditService)
 	authHandler := handler.NewAuthHandler(authService)
 
 	statsRepo := repository.NewStatsRepository(db.DB)
@@ -133,7 +138,36 @@ func main() {
 	viewTrackingService := service.NewViewTrackingService(viewTrackingRepo, articleRepo)
 	viewTrackingHandler := handler.NewViewTrackingHandler(viewTrackingService)
 
-	appRouter := router.NewRouter(articleHandler, categoryHandler, tagHandler, authHandler, statsHandler, dashboardHandler, userHandler, uploadHandler, seoHandler, commentHandler, ratingHandler, viewTrackingHandler, wsHub, respCache)
+	// Settings
+	settingRepo := repository.NewSettingRepository(db.DB)
+	settingService := service.NewSettingService(settingRepo, auditService)
+	settingHandler := handler.NewSettingHandler(settingService)
+
+	// Audit & System Logs
+	auditHandler := handler.NewAuditHandler(auditService)
+
+	// Initialize and Start Log Cleanup Worker
+	logWorker := worker.NewLogWorker(settingService, auditService)
+	logWorker.Start()
+
+	appRouter := router.NewRouter(
+		articleHandler,
+		categoryHandler,
+		tagHandler,
+		authHandler,
+		statsHandler,
+		dashboardHandler,
+		userHandler,
+		uploadHandler,
+		seoHandler,
+		commentHandler,
+		ratingHandler,
+		viewTrackingHandler,
+		settingHandler,
+		auditHandler,
+		wsHub,
+		respCache,
+	)
 	appRouter.Setup(r)
 
 	// 6. Start Server

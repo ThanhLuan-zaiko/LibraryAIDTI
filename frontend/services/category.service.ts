@@ -19,6 +19,7 @@ export interface Category {
 export interface CategoryStats {
     id: string;
     name: string;
+    slug: string;
     article_count: number;
 }
 

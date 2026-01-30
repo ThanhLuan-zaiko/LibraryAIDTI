@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { HiExclamationCircle, HiX, HiCheck } from 'react-icons/hi';
+import { toast } from 'react-hot-toast';
 import { articleService, Article, ArticleInput, ArticleSeoRedirect } from '@/services/article.service';
 import { categoryService, Category } from '@/services/category.service';
 import { tagService, Tag } from '@/services/tag.service';
@@ -171,10 +172,14 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ articleId, initialData })
         try {
             if (articleId) {
                 await articleService.update(articleId, formData);
-                setSuccess("Bài viết đã được cập nhật thành công!");
+                const msg = "Bài viết đã được cập nhật thành công!";
+                setSuccess(msg);
+                toast.success(msg);
             } else {
                 await articleService.create(formData);
-                setSuccess("Bài viết đã được tạo thành công!");
+                const msg = "Bài viết đã được tạo thành công!";
+                setSuccess(msg);
+                toast.success(msg);
             }
 
             // Update initial state to represent current saved state (reset dirty)

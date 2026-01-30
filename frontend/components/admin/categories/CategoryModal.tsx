@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Category, categoryService } from "@/services/category.service";
 import { FiChevronDown } from "react-icons/fi";
+import { toast } from "react-hot-toast";
 
 interface CategoryModalProps {
     isOpen: boolean;
@@ -44,6 +45,7 @@ export default function CategoryModal({
                 is_active: true
             });
         }
+        setError(null);
     }, [editingCategory, isOpen]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -56,14 +58,17 @@ export default function CategoryModal({
 
             if (editingCategory) {
                 await categoryService.update(editingCategory.id, dataToSubmit);
+                toast.success("Cập nhật danh mục thành công");
             } else {
                 await categoryService.create(dataToSubmit);
+                toast.success("Thêm danh mục mới thành công");
             }
 
             onSuccess();
             onClose();
-        } catch (error) {
-            setError("Không thể lưu danh mục.");
+        } catch (error: any) {
+            const message = error.response?.data?.error?.message || "Không thể lưu danh mục.";
+            setError(message);
         }
     };
 
@@ -81,6 +86,11 @@ export default function CategoryModal({
                     </button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    {error && (
+                        <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium border border-red-100 animate-in fade-in slide-in-from-top-1 duration-200">
+                            {error}
+                        </div>
+                    )}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-1">Tên danh mục</label>
                         <input
